@@ -1,0 +1,22 @@
+# render.yaml
+services:
+  - type: web
+    name: reportbot
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run both
+    autoDeploy: true
+
+    envVars:
+      - key: TOKEN
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: CLIENT_ID
+        sync: false
+
+    healthCheckPath: /
+
+preDeployCommand: echo "Deploy in corso..."

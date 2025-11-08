@@ -12,7 +12,7 @@ app.get('/', (req, res) => {
 app.get('/status', (req, res) => {
   res.json({
     status: 'online',
-    bot: 'Discord Bot',
+    bot: 'Hamster Bot',
     uptime: `${Math.floor(process.uptime())} secondi`,
     time: new Date().toISOString(),
     message: 'Tutto funziona!'
