@@ -18,5 +18,3 @@ services:
         sync: false
 
     healthCheckPath: /
-
-preDeployCommand: echo "Deploy in corso..."
