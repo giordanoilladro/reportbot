@@ -1,0 +1,8 @@
+{
+  "statusInterval": 10000,
+  "statusList": [
+    { "text": "👋 Usa /help per assistenza", "type": "Playing", "presence": "online" },
+    { "text": "💙 Multi-server system attivo", "type": "Watching", "presence": "idle" },
+    { "text": "⚙️ Gestendo configurazioni...", "type": "Competing", "presence": "online" }
+  ]
+}

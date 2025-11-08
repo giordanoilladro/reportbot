@@ -1,0 +1,24 @@
+{
+  "1286251696640753706": [
+    {
+      "reportId": "1762601914525_2305",
+      "targetId": "1388633919586304073",
+      "reporterId": "676113660678242305",
+      "reason": "test",
+      "status": "pending",
+      "timestamp": 1762601914525,
+      "handledBy": null,
+      "handledAt": null
+    },
+    {
+      "reportId": "1762602104090_8156",
+      "targetId": "676113660678242305",
+      "reporterId": "1160658189847638156",
+      "reason": "test",
+      "status": "pending",
+      "timestamp": 1762602104090,
+      "handledBy": null,
+      "handledAt": null
+    }
+  ]
+}

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title><%= guildName %> - ReportBot</title>
+  <style>
+    :root { --bg: #1e2124; --card: #2f3136; --text: #dcddde; --muted: #72767d; --accent: #5865F2; --green: #57F287; --red: #ED4245; --border: #40444b; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Whitney', sans-serif; padding: 20px; }
+    .container { max-width: 1000px; margin: 0 auto; background: var(--card); border-radius: 12px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .guild-icon { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+    .guild-name { font-size: 1.5rem; font-weight: 600; color: #fff; }
+    .guild-id { font-size: 0.9rem; color: var(--muted); }
+    .tabs { display: flex; gap: 4px; margin-bottom: 24px; }
+    .tab { padding: 10px 20px; background: #36393f; border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 500; }
+    .tab.active { background: var(--card); color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .section { margin-bottom: 32px; }
+    .section h2 { color: #fff; font-size: 1.3rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-weight: 500; color: #b9bbbe; }
+    input, select, textarea { width: 100%; padding: 10px; background: #36393f; border: 1px solid var(--border); border-radius: 8px; color: #fff; font-size: 14px; }
+    input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    .toggle { position: relative; display: inline-block; width: 48px; height: 28px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #40444b; transition: .3s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background: var(--green); }
+    input:checked + .slider:before { transform: translateX(20px); }
+    .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px; margin-right: 8px; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-danger { background: var(--red); color: white; }
+    .btn-secondary { background: #5865F2; color: white; }
+    .actions { margin-top: 32px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .preview { margin-top: 16px; padding: 16px; background: #36393f; border-radius: 8px; font-family: monospace; color: #57F287; font-size: 13px; max-height: 200px; overflow-y: auto; }
+    .back { display: inline-block; margin-top: 20px; color: #00aff4; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://cdn.discordapp.com/icons/<%= guildId %>/<%= guildIcon %>.webp?size=128" class="guild-icon" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <div style="width:64px;height:64px;border-radius:50%;background:#36393f;display:none;flex-direction:column;align-items:center;justify-content:center;color:#72767d;font-size:1.5rem;">
+        <%= guildName.charAt(0) %>
+      </div>
+      <div>
+        <div class="guild-name"><%= guildName %></div>
+        <div class="guild-id">ID: <%= guildId %></div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="openTab('general')">Generale</div>
+      <div class="tab" onclick="openTab('verify')">Verifica</div>
+      <div class="tab" onclick="openTab('welcome')">Benvenuto</div>
+      <div class="tab" onclick="openTab('report')">Report</div>
+      <div class="tab" onclick="openTab('automod')">Auto-Mod</div>
+    </div>
+
+    <form id="configForm" method="POST" action="/guild/<%= guildId %>">
+      <input type="hidden" name="p" value="<%= password %>">
+
+      <!-- GENERALE -->
+      <div id="general" class="tab-content active">
+        <div class="section">
+          <h2>Setup Server</h2>
+          <div class="form-group">
+            <label>Canale Log</label>
+            <input type="text" value="<%= settings.logChannelId || '' %>" data-field="logChannelId" placeholder="ID canale log">
+          </div>
+          <div class="form-group">
+            <label>Ruolo Mute</label>
+            <input type="text" value="<%= settings.setup?.muteRoleId || '' %>" data-field="setup.muteRoleId" placeholder="ID ruolo mute">
+          </div>
+          <div class="form-group">
+            <label>Prefix</label>
+            <input type="text" value="<%= settings.setup?.prefix || '!' %>" data-field="setup.prefix" placeholder="!">
+          </div>
+        </div>
+      </div>
+
+      <!-- VERIFICA -->
+      <div id="verify" class="tab-content">
+        <div class="section">
+          <h2>Verifica Utente</h2>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" <%= settings.verify?.enabled ? 'checked' : '' %> onchange="toggleSection('verify')">
+              Abilita verifica
+            </label>
+          </div>
+          <div id="verify-fields" style="<%= settings.verify?.enabled ? '' : 'display:none' %>">
+            <div class="form-group">
+              <label>Titolo</label>
+              <input type="text" value="<%= settings.verify?.title || '' %>" data-field="verify.title">
+            </div>
+            <div class="form-group">
+              <label>Descrizione</label>
+              <textarea rows="2" data-field="verify.description"><%= settings.verify?.description || '' %></textarea>
+            </div>
+            <div class="form-group">
+              <label>Footer</label>
+              <input type="text" value="<%= settings.verify?.footer || '' %>" data-field="verify.footer">
+            </div>
+            <div class="form-group">
+              <label>Immagine URL</label>
+              <input type="url" value="<%= settings.verify?.image || '' %>" data-field="verify.image">
+            </div>
+            <div class="form-group">
+              <label>Colore</label>
+              <input type="text" value="<%= settings.verify?.color || '#00ff00' %>" data-field="verify.color">
+            </div>
+            <div class="form-group">
+              <label>Ruolo da dare</label>
+              <input type="text" value="<%= settings.verify?.roleId || '' %>" data-field="verify.roleId">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BENVENUTO -->
+      <div id="welcome" class="tab-content">
+        <div class="section">
+          <h2>Messaggio di Benvenuto</h2>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" <%= settings.welcome?.enabled ? 'checked' : '' %> onchange="toggleSection('welcome')">
+              Abilita benvenuto
+            </label>
+          </div>
+          <div id="welcome-fields" style="<%= settings.welcome?.enabled ? '' : 'display:none' %>">
+            <div class="form-group">
+              <label>Canale</label>
+              <input type="text" value="<%= settings.welcome?.channelId || '' %>" data-field="welcome.channelId">
+            </div>
+            <div class="form-group">
+              <label>Titolo</label>
+              <input type="text" value="<%= settings.welcome?.title || '' %>" data-field="welcome.title">
+            </div>
+            <div class="form-group">
+              <label>Descrizione</label>
+              <textarea rows="2" data-field="welcome.description"><%= settings.welcome?.description || '' %></textarea>
+            </div>
+            <div class="form-group">
+              <label>Footer</label>
+              <input type="text" value="<%= settings.welcome?.footer || '' %>" data-field="welcome.footer">
+            </div>
+            <div class="form-group">
+              <label>Immagine URL</label>
+              <input type="url" value="<%= settings.welcome?.image || '' %>" data-field="welcome.image">
+            </div>
+            <div class="form-group">
+              <label>Colore</label>
+              <input type="text" value="<%= settings.welcome?.color || '#ff69b4' %>" data-field="welcome.color">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORT -->
+      <div id="report" class="tab-content">
+        <div class="section">
+          <h2>Sistema Report</h2>
+          <div class="form-group">
+            <label>Canale Report</label>
+            <input type="text" value="<%= settings.report?.channelId || '' %>" data-field="report.channelId" placeholder="ID canale">
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" <%= settings.report?.requireReason ? 'checked' : '' %> data-field="report.requireReason">
+              Motivo obbligatorio
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- AUTO-MOD -->
+      <div id="automod" class="tab-content">
+        <div class="section">
+          <h2>Auto-Moderazione</h2>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" <%= settings.automod?.enabled ? 'checked' : '' %> onchange="toggleSection('automod')">
+              Abilita Auto-Mod
+            </label>
+          </div>
+          <div id="automod-fields" style="<%= settings.automod?.enabled ? '' : 'display:none' %>">
+            <div class="form-group">
+              <label>
+                <input type="checkbox" <%= settings.automod?.blockSwears ? 'checked' : '' %> data-field="automod.blockSwears">
+                Blocca bestemmie
+              </label>
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" <%= settings.automod?.blockLinks ? 'checked' : '' %> data-field="automod.blockLinks">
+                Blocca link
+              </label>
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" <%= settings.automod?.blockCaps ? 'checked' : '' %> data-field="automod.blockCaps">
+                Blocca MAIUSCOLO
+              </label>
+            </div>
+            <div class="form-group">
+              <label>Soglia MAIUSCOLO (%)</label>
+              <input type="number" value="<%= settings.automod?.capsThreshold || 70 %>" data-field="automod.capsThreshold" min="50" max="100">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Salva Tutto</button>
+        <button type="button" class="btn btn-secondary" onclick="backupDB()">Backup DB</button>
+        <button type="button" class="btn btn-danger" onclick="leaveServer()">Esci dal Server</button>
+      </div>
+
+      <div class="preview" id="preview">JSON generato qui...</div>
+      <a href="/?p=<%= password %>" class="back">Torna alla Dashboard</a>
+    </form>
+  </div>
+
+  <script>
+    function openTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector(`[onclick="openTab('${tab}')"]`).classList.add('active');
+      document.getElementById(tab).classList.add('active');
+      updatePreview();
+    }
+
+    function toggleSection(section) {
+      const enabled = document.querySelector(`input[onchange="toggleSection('${section}')"]`).checked;
+      document.getElementById(`${section}-fields`).style.display = enabled ? 'block' : 'none';
+      updatePreview();
+    }
+
+    function updatePreview() {
+      const data = {};
+      document.querySelectorAll('[data-field]').forEach(el => {
+        const path = el.dataset.field.split('.');
+        let obj = data;
+        for (let i = 0; i < path.length - 1; i++) {
+          if (!obj[path[i]]) obj[path[i]] = {};
+          obj = obj[path[i]];
+        }
+        let value = el.type === 'checkbox' ? el.checked : el.value;
+        if (value === '' || value === null) return;
+        obj[path[path.length - 1]] = value;
+      });
+      document.getElementById('preview').textContent = JSON.stringify(data, null, 2);
+    }
+
+    function backupDB() {
+      if (confirm('Scaricare backup del database?')) {
+        window.location = `/guild/<%= guildId %>/backup?p=<%= password %>`;
+      }
+    }
+
+    function leaveServer() {
+      if (confirm('Il bot uscirà dal server. Continuare?')) {
+        fetch(`/guild/<%= guildId %>/leave?p=<%= password %>`, { method: 'POST' })
+          .then(() => location.href = '/?p=<%= password %>');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updatePreview();
+      document.querySelectorAll('input, textarea').forEach(el => el.addEventListener('input', updatePreview));
+    });
+  </script>
+</body>
+</html>

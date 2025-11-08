@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ReportBot Dashboard</title>
+  <style>
+    :root {
+      --bg: #1e2124;
+      --card-bg: #2f3136;
+      --text: #dcddde;
+      --text-muted: #72767d;
+      --accent: #5865F2;
+      --border: #40444b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      font-size: 2rem;
+      color: #fff;
+      font-weight: 600;
+    }
+    .header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+
+    .servers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .server-tile {
+      background: var(--card-bg);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .server-tile:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .server-icon {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      background: #36393f;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .server-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .server-icon::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.7));
+    }
+
+    .server-info {
+      padding: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .server-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .server-id {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .config-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--accent);
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+      text-decoration: none;
+    }
+
+    .server-tile:hover .config-btn {
+      opacity: 1;
+    }
+
+    .no-servers {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      margin-top: 50px;
+    }
+
+    @media (max-width: 600px) {
+      .servers-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>ReportBot Dashboard</h1>
+    <p>Server gestiti: <strong><%= guilds.length %></strong></p>
+  </div>
+
+  <% if (guilds.length === 0) { %>
+    <p class="no-servers">Il bot non è in nessun server. Aggiungilo!</p>
+  <% } else { %>
+    <div class="servers-grid">
+      <% guilds.forEach(g => { %>
+        <a href="/guild/<%= g.id %>?p=<%= password %>" class="server-tile">
+          <div class="server-icon">
+            <% if (g.icon) { %>
+              <img src="https://cdn.discordapp.com/icons/<%= g.id %>/<%= g.icon %>.webp?size=128" alt="<%= g.name %>">
+            <% } else { %>
+              <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#72767d;font-size:2rem;">
+                <%= g.name.charAt(0).toUpperCase() %>
+              </div>
+            <% } %>
+          </div>
+          <div class="server-info">
+            <div class="server-name" title="<%= g.name %>"><%= g.name %></div>
+            <div class="server-id">ID: <%= g.id %></div>
+          </div>
+          <div class="config-btn">⚙️</div>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</body>
+</html>

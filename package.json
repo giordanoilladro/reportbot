@@ -1,0 +1,22 @@
+{
+  "name": "reportbot1",
+  "version": "2.0.0",
+  "description": "ReportBot Multi-Server con Dashboard e Backup",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cron": "^3.1.7",
+    "discord.js": "^14.15.3",
+    "dotenv": "^17.2.3",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "fs-extra": "^11.2.0",
+    "mongodb": "^7.0.0",
+    "mongoose": "^8.5.1",
+    "sqlite3": "^5.1.7"
+  }
+}
