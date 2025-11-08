@@ -8,6 +8,7 @@ services:
     buildCommand: npm install
     startCommand: npm run both
     autoDeploy: true
+    healthCheckPath: /health
 
     envVars:
       - key: TOKEN
