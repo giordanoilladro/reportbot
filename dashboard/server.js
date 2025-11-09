@@ -43,15 +43,13 @@ app.use((req, res, next) => {
 });
 
 // ===================================
-// ROTTE STATICHE PULITE (senza .html)
+// ROTTE STATICHE PULITE
 // ===================================
 
-// Home
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/pages/home.html'));
 });
 
-// Pagine statiche con URL pulite
 const staticPages = [
   { route: '/collabora', file: 'collabora.html' },
   { route: '/termini',    file: 'termini.html' },
@@ -66,74 +64,93 @@ staticPages.forEach(page => {
 });
 
 // === OAUTH2 ===
-// Rotta per avviare il login
 app.get('/login', (req, res) => {
   const url = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
   res.redirect(url);
 });
 
-// Rotta callback OAuth2
+// === CALLBACK CON FIX TOTALI ===
 app.get('/auth/callback', async (req, res) => {
   const { code } = req.query;
-  if (!code) return res.status(400).send('Errore login: codice mancante.');
+  if (!code) return res.status(400).send('Errore: codice mancante.');
 
   try {
-    // === BODY COME STRINGA (FIX per "Corpo modulo non valido") ===
+    // === BODY STRINGA (fix "modulo non valido") ===
     const body = `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}`;
 
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: body,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
     });
 
     const tokens = await tokenResponse.json();
-
-    // Gestione errori Discord
     if (tokens.error) {
-      throw new Error(`Discord error: ${tokens.error_description || tokens.error}`);
+      throw new Error(`Token error: ${tokens.error_description || tokens.error}`);
     }
 
-    // Richieste parallele per utente e server
-    const [userRes, guildsRes] = await Promise.all([
-      fetch('https://discord.com/api/users/@me', { 
-        headers: { Authorization: `Bearer ${tokens.access_token}` } 
-      }),
-      fetch('https://discord.com/api/users/@me/guilds', { 
-        headers: { Authorization: `Bearer ${tokens.access_token}` } 
-      })
-    ]);
+    if (!tokens.access_token) {
+      throw new Error('Access token mancante');
+    }
+
+    // === FETCH UTENTE CON CONTROLLO ===
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+
+    if (!userRes.ok) {
+      const err = await userRes.text();
+      throw new Error(`User fetch failed (${userRes.status}): ${err}`);
+    }
 
     const user = await userRes.json();
-    const guilds = await guildsRes.json();
 
-    // Filtra solo i server dove l'utente è admin o owner
-    const adminGuilds = guilds.filter(g => (g.permissions & 0x8) === 0x8 || g.owner);
+    // === FETCH GUILDS CON CONTROLLO ===
+    const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
 
-    // Salva in sessione
-    req.session.user = { 
-      id: user.id, 
-      username: user.username, 
-      discriminator: user.discriminator,
-      avatar: user.avatar 
+    let guilds = [];
+    if (guildsRes.ok) {
+      const data = await guildsRes.json();
+      if (Array.isArray(data)) {
+        guilds = data;
+      } else {
+        console.warn('Guilds non è array:', data);
+      }
+    } else {
+      console.warn('Guilds fetch fallita:', guildsRes.status, await guildsRes.text());
+    }
+
+    // === FILTRA ADMIN GUILDS (solo se array) ===
+    const adminGuilds = Array.isArray(guilds)
+      ? guilds.filter(g => g && ((g.permissions & 0x8) === 0x8 || g.owner))
+      : [];
+
+    // === SALVA SESSIONE ===
+    req.session.user = {
+      id: user.id,
+      username: user.username,
+      discriminator: user.discriminator || '0',
+      avatar: user.avatar
     };
     req.session.guilds = adminGuilds;
 
+    console.log(`Login OK: ${user.username}#${user.discriminator} | Guilds: ${adminGuilds.length}`);
+
     res.redirect('/dashboard');
   } catch (err) {
-    console.error('OAuth2 error:', err.message);
-    res.status(500).send(`Errore autenticazione: ${err.message}`);
+    console.error('OAuth2 ERRORE:', err.message);
+    res.status(500).send(`Errore login: ${err.message}`);
   }
 });
 
-// Logout
+// === LOGOUT ===
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
 
-// Middleware autenticazione
+// === AUTENTICAZIONE ===
 const requireAuth = (req, res, next) => {
   if (!req.session.user) return res.redirect('/login');
   next();
@@ -145,7 +162,7 @@ const requireAuth = (req, res, next) => {
 app.get('/dashboard', requireAuth, (req, res) => {
   res.render('dashboard', {
     user: req.session.user,
-    guilds: req.session.guilds,
+    guilds: req.session.guilds || [],
     selectedGuild: null,
     settings: {}
   });
@@ -153,7 +170,7 @@ app.get('/dashboard', requireAuth, (req, res) => {
 
 app.get('/guild/:id', requireAuth, async (req, res) => {
   const guildId = req.params.id;
-  if (!req.session.guilds.some(g => g.id === guildId)) {
+  if (!req.session.guilds?.some(g => g.id === guildId)) {
     return res.status(403).send('Accesso negato.');
   }
 
@@ -178,7 +195,7 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
 
 app.post('/guild/:id/save', requireAuth, async (req, res) => {
   const guildId = req.params.id;
-  if (!req.session.guilds.some(g => g.id === guildId)) {
+  if (!req.session.guilds?.some(g => g.id === guildId)) {
     return res.json({ success: false, error: 'No permessi' });
   }
 
@@ -199,19 +216,17 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
 });
 
 // ===================================
-// 404 PAGE
+// 404
 // ===================================
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public/pages/404.html'));
 });
 
 // ===================================
-// AVVIO SERVER
+// AVVIO
 // ===================================
 app.listen(PORT, HOST, () => {
   console.log('HAMSTERHOUSE DASHBOARD ONLINE');
-  console.log(`APRI SUBITO → ${BASE_URL}`);
-  console.log(`Dashboard → ${BASE_URL}/dashboard`);
-  console.log(`Pagine → ${BASE_URL}/collabora | ${BASE_URL}/termini | ${BASE_URL}/privacy`);
+  console.log(`APRI → ${BASE_URL}`);
   console.log(`Login → ${BASE_URL}/login`);
 });
