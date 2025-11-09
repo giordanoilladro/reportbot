@@ -1,4 +1,3 @@
-// dashboard/server.js
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
@@ -11,9 +10,10 @@ const { getGuildConfig, setGuildConfig } = require('../utils/configManager');
 
 const app = express();
 
-// === PORTA E HOST PER FLY.IO ===
+// === CONFIG ===
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
+const BASE_URL = 'https://hamsterhouse.it';
 
 // === MONGO ===
 mongoose.connect(process.env.MONGO_URI)
@@ -23,40 +23,46 @@ mongoose.connect(process.env.MONGO_URI)
 // === MIDDLEWARE ===
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'))); // Serve tutto in public/
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 24 * 60 * 60 * 1000 }
 }));
-
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// ===================================
-// REDIRECT AUTOMATICO LOCALHOST → hamsterhouse.it
-// ===================================
+// === REDIRECT LOCALHOST ===
 app.use((req, res, next) => {
   const host = req.headers.host || '';
   if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0')) {
-    return res.redirect(301, 'https://hamsterhouse.it' + req.originalUrl);
+    return res.redirect(301, BASE_URL + req.originalUrl);
   }
   next();
 });
 
 // ===================================
-// ROTTE STATICHE
+// ROTTE STATICHE PULITE (senza .html)
 // ===================================
-const pages = ['home', 'termini', 'privacy', 'collabora'];
-pages.forEach(page => {
-  app.get(`/${page}`, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/pages', `${page}.html`));
-  });
-});
 
+// Home
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/pages/home.html'));
+});
+
+// Pagine statiche con URL pulite
+const staticPages = [
+  { route: '/collabora', file: 'collabora.html' },
+  { route: '/termini',    file: 'termini.html' },
+  { route: '/privacy',    file: 'privacy.html' },
+  { route: '/home',       file: 'home.html' } // opzionale
+];
+
+staticPages.forEach(page => {
+  app.get(page.route, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/pages', page.file));
+  });
 });
 
 // === OAUTH2 ===
@@ -105,8 +111,7 @@ app.get('/auth/callback', async (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/');
+  req.session.destroy(() => res.redirect('/'));
 });
 
 const requireAuth = (req, res, next) => {
@@ -134,7 +139,7 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
 
   try {
     const guild = req.session.guilds.find(g => g.id === guildId);
-    const jsonSettings = getGuildConfig(guildId);
+    const jsonSettings = getGuildConfig(guildId) || {};
     const dbDoc = await GuildSettings.findOne({ guildId });
     const dbSettings = dbDoc ? dbDoc.toObject() : {};
     const settings = { ...dbSettings, ...jsonSettings };
@@ -174,14 +179,19 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
 });
 
 // ===================================
+// 404 PAGE
+// ===================================
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public/pages/404.html'));
+});
+
+// ===================================
 // AVVIO SERVER
 // ===================================
 app.listen(PORT, HOST, () => {
-  const URL = 'https://hamsterhouse.it';
-  
   console.log('HAMSTERHOUSE DASHBOARD ONLINE');
-  console.log(`APRI SUBITO → ${URL}`);
-  console.log(`Dashboard → ${URL}/dashboard`);
-  console.log(`Pagine → ${URL}/home | ${URL}/termini | ${URL}/privacy | ${URL}/collabora`);
-  console.log(`Login → ${URL}/login`);
+  console.log(`APRI SUBITO → ${BASE_URL}`);
+  console.log(`Dashboard → ${BASE_URL}/dashboard`);
+  console.log(`Pagine → ${BASE_URL}/collabora | ${BASE_URL}/termini | ${BASE_URL}/privacy`);
+  console.log(`Login → ${BASE_URL}/login`);
 });
