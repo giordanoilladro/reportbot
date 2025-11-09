@@ -23,7 +23,7 @@ mongoose.connect(process.env.MONGO_URI)
 // === MIDDLEWARE ===
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public'))); // Serve tutto in public/
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -56,7 +56,7 @@ const staticPages = [
   { route: '/collabora', file: 'collabora.html' },
   { route: '/termini',    file: 'termini.html' },
   { route: '/privacy',    file: 'privacy.html' },
-  { route: '/home',       file: 'home.html' } // opzionale
+  { route: '/home',       file: 'home.html' }
 ];
 
 staticPages.forEach(page => {
@@ -66,54 +66,74 @@ staticPages.forEach(page => {
 });
 
 // === OAUTH2 ===
+// Rotta per avviare il login
 app.get('/login', (req, res) => {
   const url = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
   res.redirect(url);
 });
 
+// Rotta callback OAuth2
 app.get('/auth/callback', async (req, res) => {
   const { code } = req.query;
-  if (!code) return res.status(400).send('Errore login.');
+  if (!code) return res.status(400).send('Errore login: codice mancante.');
 
   try {
+    // === BODY COME STRINGA (FIX per "Corpo modulo non valido") ===
+    const body = `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}`;
+
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
-      body: new URLSearchParams({
-        client_id: process.env.CLIENT_ID,
-        client_secret: process.env.CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: process.env.REDIRECT_URI,
-      }),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body,
     });
 
     const tokens = await tokenResponse.json();
-    if (tokens.error) throw new Error(tokens.error);
 
+    // Gestione errori Discord
+    if (tokens.error) {
+      throw new Error(`Discord error: ${tokens.error_description || tokens.error}`);
+    }
+
+    // Richieste parallele per utente e server
     const [userRes, guildsRes] = await Promise.all([
-      fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${tokens.access_token}` } }),
-      fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${tokens.access_token}` } })
+      fetch('https://discord.com/api/users/@me', { 
+        headers: { Authorization: `Bearer ${tokens.access_token}` } 
+      }),
+      fetch('https://discord.com/api/users/@me/guilds', { 
+        headers: { Authorization: `Bearer ${tokens.access_token}` } 
+      })
     ]);
 
     const user = await userRes.json();
     const guilds = await guildsRes.json();
+
+    // Filtra solo i server dove l'utente è admin o owner
     const adminGuilds = guilds.filter(g => (g.permissions & 0x8) === 0x8 || g.owner);
 
-    req.session.user = { id: user.id, username: user.username, avatar: user.avatar };
+    // Salva in sessione
+    req.session.user = { 
+      id: user.id, 
+      username: user.username, 
+      discriminator: user.discriminator,
+      avatar: user.avatar 
+    };
     req.session.guilds = adminGuilds;
 
     res.redirect('/dashboard');
   } catch (err) {
-    console.error('OAuth2 error:', err);
-    res.status(500).send('Errore autenticazione.');
+    console.error('OAuth2 error:', err.message);
+    res.status(500).send(`Errore autenticazione: ${err.message}`);
   }
 });
 
+// Logout
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
 
+// Middleware autenticazione
 const requireAuth = (req, res, next) => {
   if (!req.session.user) return res.redirect('/login');
   next();
