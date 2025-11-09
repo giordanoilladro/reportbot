@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hamster Bot</title>
+  <meta name="description" content="Hamster Bot - Benvenuto nel nostro progetto Discord. Collabora, configura e gestisci il tuo server." />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" />
+  <style>
+    :root {
+      --bg1: #09090f;
+      --bg2: #141420;
+      --accent1: #8b0000;
+      --accent2: #d32f2f;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --glass: rgba(255, 255, 255, 0.06);
+      --glass-hover: rgba(255, 255, 255, 0.1);
+      --radius: 16px;
+      font-family: 'Poppins', 'Inter', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg1); color: var(--text); overflow-x: hidden; }
+    canvas#bgAnimation { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+    header { display: flex; align-items: center; gap: 20px; padding: 24px 40px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 50; }
+    .logo { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(145deg, var(--accent2), var(--accent1)); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(255,0,0,0.2); animation: bounce 2s infinite ease-in-out; }
+    .logo img { width: 56px; height: 56px; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    h1 { font-size: 1.2rem; color: var(--accent2); margin: 0; transition: color 0.3s; }
+    p.lead { color: var(--muted); margin: 0.1rem 0 0 0; font-size: 0.9rem; }
+    .header-right { margin-left: auto; display:flex; gap:10px; align-items:center; }
+    .nav-btn { background: var(--glass); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 8px 14px; color: var(--text); cursor: pointer; transition: all 0.25s; text-decoration: none; display: inline-flex; gap:8px; align-items:center; }
+    .nav-btn:hover { background: var(--glass-hover); transform: translateY(-2px); }
+    .discord-btn { background: linear-gradient(90deg,var(--accent1),var(--accent2)); color: white; text-decoration: none; font-weight:600; box-shadow: 0 6px 20px rgba(211,47,47,0.25); }
+    .container { max-width: 1000px; margin: 36px auto; padding: 0 20px 60px; }
+    .hero { text-align: center; margin-bottom: 60px; }
+    .hero h1 { font-size: 2.8rem; margin: 0 0 16px; background: linear-gradient(90deg, #fff, var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { font-size: 1.1rem; color: var(--muted); max-width: 700px; margin: 0 auto 32px; }
+    .btn-large { display: inline-block; padding: 14px 36px; font-size: 1.1rem; background: linear-gradient(90deg,var(--accent1),var(--accent2)); color: white; border-radius: 999px; text-decoration: none; font-weight: 600; box-shadow: 0 8px 30px rgba(211,47,47,0.3); transition: all 0.3s; }
+    .btn-large:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(211,47,47,0.5); }
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin: 60px 0; }
+    .feature-card { background: var(--glass); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); padding: 28px; text-align: center; transition: all 0.3s; }
+    .feature-card:hover { background: var(--glass-hover); transform: translateY(-8px); box-shadow: 0 16px 40px rgba(0,0,0,0.3); }
+    .feature-icon { width: 64px; height: 64px; margin: 0 auto 16px; background: linear-gradient(135deg, var(--accent2), var(--accent1)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: white; }
+    footer { text-align: center; margin-top: 80px; color: var(--muted); font-size: 0.9rem; }
+    .lang-toggle { background: var(--glass); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 6px 12px; color: var(--text); cursor: pointer; font-size: 0.8rem; }
+    .lang-toggle.active { background: var(--accent1); color: white; }
+    .lang-it, .lang-en { transition: opacity 0.3s; }
+    .lang-en { display: none; }
+  </style>
+</head>
+<body>
+
+<canvas id="bgAnimation"></canvas>
+
+<header>
+  <div class="logo">
+    <img src="https://cdn.discordapp.com/emojis/1286251696640753706.webp?size=96" alt="Hamster">
+  </div>
+  <div>
+    <h1>Hamster Bot</h1>
+    <p class="lead">Gestione avanzata per server Discord</p>
+  </div>
+  <div class="header-right">
+    <a href="/" class="nav-btn">Dashboard</a>
+    <a href="https://discord.gg/aFHaVbTFUY" target="_blank" class="nav-btn discord-btn">
+      <img src="https://cdn-icons-png.flaticon.com/512/2111/2111370.png" style="width:18px;height:18px;"> Discord
+    </a>
+    <div class="lang-toggle" id="langToggle">EN</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <section class="hero" data-aos="fade-up">
+    <div class="lang-it">
+      <h1>Benvenuto in Hamster Bot</h1>
+      <p>Un bot Discord potente e personalizzabile per gestire report, verifiche, log e automoderazione nei tuoi server.</p>
+      <a href="/dashboard" class="btn-large">Accedi alla Dashboard</a>
+    </div>
+    <div class="lang-en">
+      <h1>Welcome to Hamster Bot</h1>
+      <p>A powerful and customizable Discord bot to manage reports, verifications, logs, and automoderation in your servers.</p>
+      <a href="/" class="btn-large">Go to Dashboard</a>
+    </div>
+  </section>
+
+  <div class="features">
+    <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
+      <div class="feature-icon">Report</div>
+      <h3 class="lang-it">Sistema Report</h3><h3 class="lang-en">Report System</h3>
+      <p class="lang-it">Segnalazioni facili con motivo opzionale e canale dedicato.</p>
+      <p class="lang-en">Easy reporting with optional reason and dedicated channel.</p>
+    </div>
+    <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
+      <div class="feature-icon">Verify</div>
+      <h3 class="lang-it">Verifica Utenti</h3><h3 class="lang-en">User Verification</h3>
+      <p class="lang-it">Sistema CAPTCHA o reazione per proteggere il server.</p>
+      <p class="lang-en">CAPTCHA or reaction system to protect your server.</p>
+    </div>
+    <div class="feature-card" data-aos="fade-up" data-aos-delay="300">
+      <div class="feature-icon">Logs</div>
+      <h3 class="lang-it">Log Completi</h3><h3 class="lang-en">Full Logs</h3>
+      <p class="lang-it">Registra ogni azione: ban, mute, messaggi eliminati.</p>
+      <p class="lang-en">Log every action: bans, mutes, deleted messages.</p>
+    </div>
+  </div>
+
+  <section class="text-center" data-aos="fade-up">
+    <a href="/collabora" class="nav-btn">Vuoi collaborare?</a>
+    <a href="/termini" class="nav-btn" style="margin-left:12px;">Termini</a>
+    <a href="/privacy" class="nav-btn" style="margin-left:12px;">Privacy</a>
+  </section>
+
+</div>
+
+<footer>© 2025 Hamster Bot — Tutti i diritti riservati. <br>Aggiornato: 9 Novembre 2025</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+<script>
+  AOS.init({ duration: 800, once: true });
+
+  // Language Toggle
+  let isEN = false;
+  const toggle = document.getElementById('langToggle');
+  toggle.addEventListener('click', () => {
+    isEN = !isEN;
+    document.querySelectorAll('.lang-it').forEach(el => el.style.display = isEN ? 'none' : 'block');
+    document.querySelectorAll('.lang-en').forEach(el => el.style.display = isEN ? 'block' : 'none');
+    toggle.textContent = isEN ? 'IT' : 'EN';
+    toggle.classList.toggle('active', isEN);
+  });
+
+  // Canvas Background
+  const canvas = document.getElementById('bgAnimation');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+
+  for (let i = 0; i < 100; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: Math.random() * 2.5 + 1,
+      speedX: (Math.random() - 0.5) * 1.5,
+      speedY: (Math.random() - 0.5) * 1.5
+    });
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    particles.forEach(p => {
+      const dx = p.x - e.clientX;
+      const dy = p.y - e.clientY;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 100) { p.x += dx * 0.02; p.y += dy * 0.02; }
+    });
+  });
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.strokeStyle = 'rgba(211,47,47,0.4)';
+    particles.forEach(p => {
+      p.x += p.speedX; p.y += p.speedY;
+      if (p.x < 0 || p.x > canvas.width) p.speedX *= -1;
+      if (p.y < 0 || p.y > canvas.height) p.speedY *= -1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    });
+    for (let a = 0; a < particles.length; a++) {
+      for (let b = a + 1; b < particles.length; b++) {
+        const dx = particles[a].x - particles[b].x;
+        const dy = particles[a].y - particles[b].y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 130) {
+          ctx.beginPath(); ctx.moveTo(particles[a].x, particles[a].y);
+          ctx.lineTo(particles[b].x, particles[b].y); ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+</script>
+</body>
+</html>

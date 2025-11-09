@@ -1,0 +1,164 @@
+
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hamster Bot</title>
+  <meta name="description" content="Hamster Bot - Termini, Privacy e Collabora. Bilingue IT/EN." />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" />
+  <style>
+    :root {
+      --bg1: #09090f;
+      --bg2: #141420;
+      --accent1: #8b0000;
+      --accent2: #d32f2f;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --glass: rgba(255, 255, 255, 0.06);
+      --glass-hover: rgba(255, 255, 255, 0.1);
+      --radius: 16px;
+      font-family: 'Poppins', 'Inter', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg1); color: var(--text); overflow-x: hidden; }
+    canvas#bgAnimation { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+    header { display: flex; align-items: center; gap: 20px; padding: 24px 40px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 50; }
+    .logo { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(145deg, var(--accent2), var(--accent1)); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(255,0,0,0.2); animation: bounce 2s infinite ease-in-out; }
+    .logo img { width: 56px; height: 56px; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    h1 { font-size: 1.2rem; color: var(--accent2); margin: 0; transition: color 0.3s; }
+    p.lead { color: var(--muted); margin: 0.1rem 0 0 0; font-size: 0.9rem; }
+    .header-right { margin-left: auto; display:flex; gap:10px; align-items:center; }
+    .nav-btn { background: var(--glass); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 8px 14px; color: var(--text); cursor: pointer; transition: all 0.25s; text-decoration: none; display: inline-flex; gap:8px; align-items:center; }
+    .nav-btn:hover { background: var(--glass-hover); transform: translateY(-2px); }
+    .discord-btn { background: linear-gradient(90deg,var(--accent1),var(--accent2)); color: white; text-decoration: none; font-weight:600; box-shadow: 0 6px 20px rgba(211,47,47,0.25); }
+    .container { max-width: 1000px; margin: 36px auto; padding: 0 20px 60px; }
+    .card { background: rgba(255,255,255,0.03); border-radius: var(--radius); padding: 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.45); margin-bottom: 28px; }
+    h2 { color: var(--accent1); font-size: 1.3rem; margin-top: 0; }
+    h3 { color: var(--accent2); margin-top: 14px; }
+    ul { margin-left: 20px; line-height: 1.6; }
+    p { line-height: 1.7; }
+    footer { text-align: center; margin-top: 40px; color: var(--muted); font-size: 0.9rem; }
+    .hidden { display: none; }
+    .switcher { display: flex; gap: 10px; justify-content: center; margin-bottom: 18px; }
+    .switch-btn { padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08); background: var(--glass); cursor: pointer; color: var(--text); transition: all 0.25s; }
+    .switch-btn.active { background: var(--accent1); color: white; border: none; }
+    .accept-btn { display: block; margin: 26px auto 10px; padding: 12px 34px; font-size: 1rem; color: white; background: linear-gradient(90deg,var(--accent1),var(--accent2)); border: none; border-radius: 999px; cursor: pointer; box-shadow: 0 0 20px rgba(211,47,47,0.35); transition: all 0.25s ease; position: relative; overflow: hidden; }
+    .accept-btn::after { content: ''; position: absolute; left: -50%; top: -50%; width: 200%; height: 200%; background: rgba(255,255,255,0.12); transform: rotate(45deg); transition: all 0.6s; }
+    .accept-btn:hover::after { left: 0; top: 0; }
+    .accept-btn:hover { transform: translateY(-3px); box-shadow: 0 0 40px rgba(211,47,47,0.6); }
+    .confirmation { text-align: center; color: var(--accent2); font-weight: bold; opacity: 0; transition: opacity 0.4s; }
+    .confirmation.visible { opacity: 1; }
+    .collabora-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+    .muted { color:var(--muted); }
+    a.lang-link{color:var(--text); text-decoration:underline;}
+    @media (max-width:720px){ header{padding:16px} .logo{width:56px;height:56px}.container{margin:20px auto} }
+  </style>
+</head>
+<body>
+<canvas id="bgAnimation"></canvas>
+<header>
+  <a href="home.html" class="logo" title="Hamster Bot"><img src="https://i.imgur.com/E3vqnQz.jpeg" alt="Hamster Logo" style="border-radius: 55%; width: 75px; height: 75px; object-fit: cover;"> /></a>
+  <div>
+    <h1 id="siteTitle">Hamster Bot</h1>
+    <p class="lead">Bot Discord ufficiale per partnership e collaborazioni — Termini e Privacy.</p>
+  </div>
+  <div class="header-right">
+    <a id="linkTerms" class="nav-btn" href="/termini">Termini</a>
+    <a id="linkPrivacy" class="nav-btn" href="/privacy">Privacy Policy</a>
+    <a id="linkCollab" class="nav-btn" href="/collabora">Collabora</a>
+    <button id="langToggle" class="nav-btn">EN / IT</button>
+    <a id="discordMain" class="nav-btn discord-btn" href="https://discord.gg/aFHaVbTFUY" target="_blank" rel="noopener noreferrer"><img src="https://cdn-icons-png.flaticon.com/512/2111/2111370.png" alt="discord" style="width:18px;height:18px;"/><span id="discordText" style="margin-left:6px">Unisciti al nostro Discord</span></a>
+  </div>
+</header>
+<div class="container">
+
+<section class="card" data-aos="fade-up" data-aos-duration="800">
+  <div class="lang-it">
+    <h2>Collabora con noi</h2>
+    <p>Hamster Bot accoglie collaborazioni con creator, server e progetti comunitari. Se vuoi collaborare, offriamo:</p>
+    <ul>
+      <li>Promozione reciproca tra server;</li>
+      <li>Supporto nella gestione partnership e annunci;</li>
+      <li>Accesso a strumenti dedicati per collaboratori approvati;</li>
+      <li>Eventuali codici o canali esclusivi per partner.</li>
+    </ul>
+    <p class="muted">Come candidarsi: unisciti al nostro server Discord e invia una richiesta nella sezione <strong>partnership</strong> con le informazioni sul progetto (descrizione, link, obiettivi). Puoi anche contattarci via email a <a href="mailto:ryanstefanelli1@gmail.com">ryanstefanelli1@gmail.com</a>.</p>
+    <div class="collabora-actions">
+      <a class="nav-btn discord-btn" href="https://discord.gg/aFHaVbTFUY" target="_blank" rel="noopener noreferrer"><img src="https://cdn-icons-png.flaticon.com/512/2111/2111370.png" style="width:18px;height:18px;margin-right:8px;">Unisciti al nostro Discord</a>
+      <a class="nav-btn" href="mailto:ryanstefanelli1@gmail.com">Contattaci via email</a>
+    </div>
+  </div>
+
+  <div class="lang-en" style="display:none">
+    <h2>Collaborate with us</h2>
+    <p>Hamster Bot welcomes collaborations with creators, servers and community projects. If you want to collaborate, we offer:</p>
+    <ul>
+      <li>Mutual promotion between servers;</li>
+      <li>Support in partnership management and announcements;</li>
+      <li>Access to dedicated tools for approved collaborators;</li>
+      <li>Possible partner-specific channels or perks.</li>
+    </ul>
+    <p class="muted">How to apply: join our Discord server and submit a partnership request in the <strong>partnership</strong> channel including project details (description, links, goals). You can also contact us by email at <a href="mailto:ryanstefanelli1@gmail.com">ryanstefanelli1@gmail.com</a>.</p>
+    <div class="collabora-actions">
+      <a class="nav-btn discord-btn" href="https://discord.gg/aFHaVbTFUY" target="_blank" rel="noopener noreferrer"><img src="https://cdn-icons-png.flaticon.com/512/2111/2111370.png" style="width:18px;height:18px;margin-right:8px;">Join our Discord</a>
+      <a class="nav-btn" href="mailto:ryanstefanelli1@gmail.com">Contact us by email</a>
+    </div>
+  </div>
+</section>
+
+</div>
+<footer>© 2025 Hamster Bot — All rights reserved. <br>Last update: 17 October 2025</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+<script>
+AOS.init();
+const navTerms=document.getElementById('linkTerms');
+const navPrivacy=document.getElementById('linkPrivacy');
+const navCollab=document.getElementById('linkCollab');
+const discordMain=document.getElementById('discordMain');
+const discordText=document.getElementById('discordText');
+const langToggle=document.getElementById('langToggle');
+
+// Toggle language: updates nav labels and shows/hides .lang-it / .lang-en blocks
+let en=false;
+function setLang(toEn){
+  en=Boolean(toEn);
+  document.querySelectorAll('.lang-it').forEach(el=>el.style.display = en ? 'none' : '');
+  document.querySelectorAll('.lang-en').forEach(el=>el.style.display = en ? '' : 'none');
+  navTerms.textContent = en ? 'Terms' : 'Termini';
+  navPrivacy.textContent = 'Privacy Policy';
+  navCollab.textContent = en ? 'Collaborate' : 'Collabora';
+  discordText.textContent = en ? 'Join our Discord' : 'Unisciti al nostro Discord';
+}
+// initial
+setLang(false);
+langToggle.addEventListener('click', ()=> setLang(!en));
+
+// Canvas particles (same as original)
+const canvas = document.getElementById('bgAnimation');
+const ctx = canvas.getContext('2d');
+let particles = [];
+function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+for(let i=0;i<120;i++){ particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*3+1,speedX:(Math.random()-0.5)*2,speedY:(Math.random()-0.5)*2}); }
+canvas.addEventListener('mousemove', e => {
+  particles.forEach(p => {
+    const dx = p.x - e.clientX;
+    const dy = p.y - e.clientY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if(dist<100){ p.x += dx*0.02; p.y += dy*0.02; }
+  });
+});
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.strokeStyle='rgba(211,47,47,0.5)';
+  particles.forEach(p=>{ p.x+=p.speedX; p.y+=p.speedY; if(p.x<0||p.x>canvas.width)p.speedX*=-1; if(p.y<0||p.y>canvas.height)p.speedY*=-1; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); });
+  for(let a=0;a<particles.length;a++){ for(let b=a+1;b<particles.length;b++){ const dx=particles[a].x-particles[b].x; const dy=particles[a].y-particles[b].y; const dist=Math.sqrt(dx*dx+dy*dy); if(dist<120){ ctx.beginPath(); ctx.moveTo(particles[a].x,particles[a].y); ctx.lineTo(particles[b].x,particles[b].y); ctx.stroke(); } } }
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>

@@ -1,92 +1,185 @@
+// dashboard/server.js
+require('dotenv').config();
 const express = require('express');
+const session = require('express-session');
+const fetch = require('node-fetch'); // npm install node-fetch@2
 const path = require('path');
-const GuildSettings = require('../models/GuildSettings'); // CORRETTO
+const mongoose = require('mongoose');
 
-let client;
+const GuildSettings = require('../models/GuildSettings');
+const { getGuildConfig, setGuildConfig } = require('../utils/configManager');
 
-function start(botClient) {
-  client = botClient;
-  const app = express();
-  const port = process.env.DASHBOARD_PORT || 3000;
+const app = express();
+const PORT = process.env.DASHBOARD_PORT || 3000;
 
-  app.set('view engine', 'ejs');
-  app.set('views', path.join(__dirname, '..', 'views'));
-  app.use(express.urlencoded({ extended: true }));
+// === MONGO ===
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('MongoDB connesso'))
+  .catch(err => console.error('MongoDB errore:', err));
 
-  const auth = (req, res, next) => {
-    const pass = req.query.p || req.body.p;
-    if (pass === process.env.DASHBOARD_PASSWORD) {
-      next();
-    } else {
-      res.send(`
-        <style>body{font-family:Whitney;background:#1e2124;color:#dcddde;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}
-          .box{background:#2f3136;padding:30px;border-radius:12px;width:320px;text-align:center;}
-          input,button{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:none;font-size:16px;}
-          input{background:#36393f;color:#fff;}
-          button{background:#5865F2;color:white;cursor:pointer;}
-          button:hover{background:#4752c4;}
-        </style>
-        <div class="box">
-          <h2>ReportBot</h2>
-          <form><input type="password" name="p" placeholder="Password" required><button>Accedi</button></form>
-        </div>
-      `);
-    }
-  };
+// === MIDDLEWARE ===
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+}));
 
-  app.get('/', auth, (req, res) => {
-    const guilds = client.guilds.cache.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon,
-      memberCount: g.memberCount,
-      premiumTier: g.premiumTier || 0
-    }));
-    res.render('index', { guilds, password: process.env.DASHBOARD_PASSWORD });
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// ===================================
+// 1. ROOT → HOME.HTML (PRIMA DI TUTTO!)
+// ===================================
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/pages/home.html'));
+});
+
+// === OAUTH2 ===
+app.get('/login', (req, res) => {
+  const url = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
+  res.redirect(url);
+});
+
+app.get('/auth/callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send('Errore login.');
+
+  try {
+    const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      body: new URLSearchParams({
+        client_id: process.env.CLIENT_ID,
+        client_secret: process.env.CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: process.env.REDIRECT_URI,
+      }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+
+    const tokens = await tokenResponse.json();
+    if (tokens.error) throw new Error(tokens.error);
+
+    const [userRes, guildsRes] = await Promise.all([
+      fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${tokens.access_token}` } }),
+      fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${tokens.access_token}` } })
+    ]);
+
+    const user = await userRes.json();
+    const guilds = await guildsRes.json();
+
+    const adminGuilds = guilds.filter(g => (g.permissions & 0x8) === 0x8 || g.owner);
+
+    req.session.user = { id: user.id, username: user.username, avatar: user.avatar };
+    req.session.guilds = adminGuilds;
+
+    res.redirect('/dashboard'); // ← DASHBOARD SU /dashboard
+  } catch (err) {
+    console.error('OAuth2 error:', err);
+    res.status(500).send('Errore autenticazione.');
+  }
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
+});
+
+const requireAuth = (req, res, next) => {
+  if (!req.session.user) return res.redirect('/login');
+  next();
+};
+
+// ===================================
+// 2. DASHBOARD SU /dashboard
+// ===================================
+app.get('/dashboard', requireAuth, (req, res) => {
+  res.render('dashboard', {
+    user: req.session.user,
+    guilds: req.session.guilds,
+    selectedGuild: null,
+    settings: {}
   });
+});
 
-  app.get('/guild/:id', auth, async (req, res) => {
-    const guildId = req.params.id;
-    const guild = client.guilds.cache.get(guildId);
-    if (!guild) return res.status(404).send('Server non trovato.');
+// === GUILD PAGE ===
+app.get('/guild/:id', requireAuth, async (req, res) => {
+  const guildId = req.params.id;
+  if (!req.session.guilds.some(g => g.id === guildId)) {
+    return res.status(403).send('Accesso negato.');
+  }
 
-    try {
-      const settings = await GuildSettings.findOne({ guildId }) || { verify: {}, welcome: {} };
-      res.render('guild', { 
-        guildId, 
-        guildName: guild.name, 
-        guildIcon: guild.icon,
-        settings, 
-        password: process.env.DASHBOARD_PASSWORD 
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).send('Errore database.');
-    }
-  });
+  try {
+    const guild = req.session.guilds.find(g => g.id === guildId);
+    const jsonSettings = getGuildConfig(guildId);
+    const dbDoc = await GuildSettings.findOne({ guildId });
+    const dbSettings = dbDoc ? dbDoc.toObject() : {};
+    const settings = { ...dbSettings, ...jsonSettings };
 
-  app.post('/guild/:id', auth, async (req, res) => {
-    const { verify, welcome } = req.body;
-    try {
-      await GuildSettings.findOneAndUpdate(
-        { guildId: req.params.id },
-        { 
-          guildId: req.params.id,
-          verify: JSON.parse(verify),
-          welcome: JSON.parse(welcome)
-        },
-        { upsert: true }
-      );
-      res.redirect(`/guild/${req.params.id}?p=${process.env.DASHBOARD_PASSWORD}`);
-    } catch (err) {
-      res.status(400).send('JSON non valido: ' + err.message);
-    }
-  });
+    res.render('dashboard', {
+      user: req.session.user,
+      guilds: req.session.guilds,
+      selectedGuild: guild,
+      settings
+    });
+  } catch (err) {
+    console.error('DB error:', err);
+    res.status(500).send('Errore database.');
+  }
+});
 
-  app.listen(port, () => {
-    console.log(`Dashboard su http://localhost:${port}`);
-    console.log(`Password: ${process.env.DASHBOARD_PASSWORD}`);
-  });
-}
+// === SALVA CONFIG ===
+app.post('/guild/:id/save', requireAuth, async (req, res) => {
+  const guildId = req.params.id;
+  if (!req.session.guilds.some(g => g.id === guildId)) {
+    return res.json({ success: false, error: 'No permessi' });
+  }
 
-module.exports = { start };
+  const data = req.body;
+
+  try {
+    setGuildConfig(guildId, data);
+    await GuildSettings.findOneAndUpdate(
+      { guildId },
+      { $set: data },
+      { upsert: true }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Save error:', err);
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// ===================================
+// 3. PAGINE STATICHE
+// ===================================
+app.get('/home', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/pages/home.html'));
+});
+
+app.get('/termini', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/pages/termini.html'));
+});
+
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/pages/privacy.html'));
+});
+
+app.get('/collabora', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/pages/collabora.html'));
+});
+
+// ===================================
+// 4. AVVIO
+// ===================================
+app.listen(PORT, () => {
+  console.log(`Server avviato: http://localhost:${PORT}`);
+  console.log(`Home: http://localhost:${PORT}/`);
+  console.log(`Dashboard: http://localhost:${PORT}/dashboard`);
+  console.log(`Pagine: /termini | /privacy | /collabora`);
+});

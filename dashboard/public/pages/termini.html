@@ -1,0 +1,229 @@
+
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hamster Bot</title>
+  <meta name="description" content="Hamster Bot - Termini, Privacy e Collabora. Bilingue IT/EN." />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css" />
+  <style>
+    :root {
+      --bg1: #09090f;
+      --bg2: #141420;
+      --accent1: #8b0000;
+      --accent2: #d32f2f;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --glass: rgba(255, 255, 255, 0.06);
+      --glass-hover: rgba(255, 255, 255, 0.1);
+      --radius: 16px;
+      font-family: 'Poppins', 'Inter', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg1); color: var(--text); overflow-x: hidden; }
+    canvas#bgAnimation { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+    header { display: flex; align-items: center; gap: 20px; padding: 24px 40px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 50; }
+    .logo { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(145deg, var(--accent2), var(--accent1)); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(255,0,0,0.2); animation: bounce 2s infinite ease-in-out; }
+    .logo img { width: 56px; height: 56px; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    h1 { font-size: 1.2rem; color: var(--accent2); margin: 0; transition: color 0.3s; }
+    p.lead { color: var(--muted); margin: 0.1rem 0 0 0; font-size: 0.9rem; }
+    .header-right { margin-left: auto; display:flex; gap:10px; align-items:center; }
+    .nav-btn { background: var(--glass); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px; padding: 8px 14px; color: var(--text); cursor: pointer; transition: all 0.25s; text-decoration: none; display: inline-flex; gap:8px; align-items:center; }
+    .nav-btn:hover { background: var(--glass-hover); transform: translateY(-2px); }
+    .discord-btn { background: linear-gradient(90deg,var(--accent1),var(--accent2)); color: white; text-decoration: none; font-weight:600; box-shadow: 0 6px 20px rgba(211,47,47,0.25); }
+    .container { max-width: 1000px; margin: 36px auto; padding: 0 20px 60px; }
+    .card { background: rgba(255,255,255,0.03); border-radius: var(--radius); padding: 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.45); margin-bottom: 28px; }
+    h2 { color: var(--accent1); font-size: 1.3rem; margin-top: 0; }
+    h3 { color: var(--accent2); margin-top: 14px; }
+    ul { margin-left: 20px; line-height: 1.6; }
+    p { line-height: 1.7; }
+    footer { text-align: center; margin-top: 40px; color: var(--muted); font-size: 0.9rem; }
+    .hidden { display: none; }
+    .switcher { display: flex; gap: 10px; justify-content: center; margin-bottom: 18px; }
+    .switch-btn { padding: 8px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08); background: var(--glass); cursor: pointer; color: var(--text); transition: all 0.25s; }
+    .switch-btn.active { background: var(--accent1); color: white; border: none; }
+    .accept-btn { display: block; margin: 26px auto 10px; padding: 12px 34px; font-size: 1rem; color: white; background: linear-gradient(90deg,var(--accent1),var(--accent2)); border: none; border-radius: 999px; cursor: pointer; box-shadow: 0 0 20px rgba(211,47,47,0.35); transition: all 0.25s ease; position: relative; overflow: hidden; }
+    .accept-btn::after { content: ''; position: absolute; left: -50%; top: -50%; width: 200%; height: 200%; background: rgba(255,255,255,0.12); transform: rotate(45deg); transition: all 0.6s; }
+    .accept-btn:hover::after { left: 0; top: 0; }
+    .accept-btn:hover { transform: translateY(-3px); box-shadow: 0 0 40px rgba(211,47,47,0.6); }
+    .confirmation { text-align: center; color: var(--accent2); font-weight: bold; opacity: 0; transition: opacity 0.4s; }
+    .confirmation.visible { opacity: 1; }
+    .collabora-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; }
+    .muted { color:var(--muted); }
+    a.lang-link{color:var(--text); text-decoration:underline;}
+    @media (max-width:720px){ header{padding:16px} .logo{width:56px;height:56px}.container{margin:20px auto} }
+  </style>
+</head>
+<body>
+<canvas id="bgAnimation"></canvas>
+<header>
+  <a href="/home" class="logo" title="Hamster Bot"><img src="https://i.imgur.com/E3vqnQz.jpeg" alt="Hamster Logo" style="border-radius: 55%; width: 75px; height: 75px; object-fit: cover;"> /></a>
+  <div>
+    <h1 id="siteTitle">Hamster Bot</h1>
+    <p class="lead">Bot Discord ufficiale per partnership e collaborazioni — Termini e Privacy.</p>
+  </div>
+  <div class="header-right">
+    <a id="linkTerms" class="nav-btn" href="/termini">Termini</a>
+    <a id="linkPrivacy" class="nav-btn" href="/privacy">Privacy Policy</a>
+    <a id="linkCollab" class="nav-btn" href="/collabora">Collabora</a>
+    <button id="langToggle" class="nav-btn">EN / IT</button>
+    <a id="discordMain" class="nav-btn discord-btn" href="https://discord.gg/aFHaVbTFUY" target="_blank" rel="noopener noreferrer"><img src="https://cdn-icons-png.flaticon.com/512/2111/2111370.png" alt="discord" style="width:18px;height:18px;"/><span id="discordText" style="margin-left:6px">Unisciti al nostro Discord</span></a>
+  </div>
+</header>
+<div class="container">
+
+<section class="card" data-aos="fade-up" data-aos-duration="800">
+  <div class="lang-it">
+    <h2>Termini di Servizio (TOS) - Hamster Bot</h2>
+<p><strong>Data di entrata in vigore:</strong> 20 ottobre 2025</p>
+
+<p>Benvenuto su <strong>Hamster Bot</strong>! Accedendo o utilizzando i nostri servizi, incluso il bot Discord e gli strumenti digitali, accetti i seguenti termini e condizioni:</p>
+
+<h3>1. Accettazione dei Termini</h3>
+<p>Utilizzando Hamster Bot, accetti di rispettare i presenti Termini di Servizio e tutte le leggi applicabili. Se non accetti questi termini, ti invitiamo a non utilizzare i servizi.</p>
+
+<h3>2. Servizi Offerti</h3>
+<p>Hamster Bot fornisce strumenti digitali per la gestione di community, partnership e collaborazioni su Discord. Tutti i servizi sono forniti “così come sono”, senza garanzie implicite.</p>
+
+<h3>3. Account Utente</h3>
+<p>Per utilizzare alcune funzionalità potresti dover creare un account. Sei responsabile della sicurezza del tuo account e della correttezza delle informazioni fornite. Non condividere le credenziali con terzi.</p>
+
+<h3>4. Comportamento degli Utenti</h3>
+<p>È vietato utilizzare i servizi per scopi illegali, inviare spam, disturbare altri utenti o compromettere il funzionamento dei nostri strumenti.</p>
+
+<h3>5. Responsabilità</h3>
+<p>Hamster Bot non è responsabile per:</p>
+<ul>
+  <li>Interruzioni o malfunzionamenti temporanei dei servizi;</li>
+  <li>Perdite di dati legate all’uso dei servizi;</li>
+  <li>Danni indiretti o consequenziali derivanti dall’uso dei servizi.</li>
+</ul>
+
+<h3>6. Proprietà Intellettuale</h3>
+<p>Tutti i contenuti, loghi e materiali legati a Hamster Bot sono di proprietà esclusiva del progetto o dei suoi collaboratori. È vietata la copia o distribuzione senza autorizzazione.</p>
+
+<h3>7. Modifiche dei Termini</h3>
+<p>Hamster Bot può aggiornare questi termini in qualsiasi momento. Le modifiche saranno efficaci dalla pubblicazione sul sito o tramite annuncio sul server Discord ufficiale.</p>
+
+<h3>8. Legge Applicabile</h3>
+<p>I presenti termini sono regolati dalla legge italiana. Qualsiasi controversia sarà sottoposta ai tribunali italiani, con foro competente a Milano.</p>
+
+<h3>9. Contatti</h3>
+<p>Per domande sui Termini di Servizio o sulla Privacy Policy:</p>
+<ul>
+  <li>Email: ryanstefanelli1@gmail.com</li>
+  <li>Server Discord: <a href="https://discord.gg/aFHaVbTFUY">https://discord.gg/aFHaVbTFUY</a></li>
+</ul>
+
+<p><strong>Accettazione dei Termini da parte dell’Utente:</strong> Compilando i campi sottostanti e cliccando "Accetto", confermi di aver letto, compreso e accettato i Termini di Servizio e la Privacy Policy di Hamster Bot.</p>
+
+  </div>
+
+  <div class="lang-en" style="display:none;">
+    <h2>Terms of Service (TOS) - Hamster Bot</h2>
+<p><strong>Effective Date:</strong> October 20, 2025</p>
+
+<p>Welcome to <strong>Hamster Bot</strong>! By accessing or using our services, including the Discord bot and digital tools, you agree to the following terms and conditions:</p>
+
+<h3>1. Acceptance of Terms</h3>
+<p>By using Hamster Bot, you agree to comply with these Terms of Service and all applicable laws. If you do not agree with these terms, please do not use our services.</p>
+
+<h3>2. Services Provided</h3>
+<p>Hamster Bot provides digital tools for managing communities, partnerships, and collaborations on Discord. All services are provided “as is” without any implied warranties.</p>
+
+<h3>3. User Accounts</h3>
+<p>Some features may require creating an account. You are responsible for the security of your account and the accuracy of the information you provide. Do not share your credentials with third parties.</p>
+
+<h3>4. User Conduct</h3>
+<p>You may not use the services for illegal purposes, sending spam, harassing other users, or compromising the functionality of our tools.</p>
+
+<h3>5. Liability</h3>
+<p>Hamster Bot is not responsible for:</p>
+<ul>
+  <li>Temporary interruptions or malfunctions of the services;</li>
+  <li>Loss of data related to service use;</li>
+  <li>Indirect or consequential damages resulting from the use of the services.</li>
+</ul>
+
+<h3>6. Intellectual Property</h3>
+<p>All content, logos, and materials related to Hamster Bot are the exclusive property of the project or its collaborators. Copying or distributing them without authorization is prohibited.</p>
+
+<h3>7. Changes to Terms</h3>
+<p>Hamster Bot may update these terms at any time. Changes will take effect upon publication on the website or announcement on the official Discord server.</p>
+
+<h3>8. Governing Law</h3>
+<p>These terms are governed by Italian law. Any disputes will be subject to the Italian courts, with jurisdiction in Milan.</p>
+
+<h3>9. Contact</h3>
+<p>For questions regarding the Terms of Service or Privacy Policy:</p>
+<ul>
+  <li>Email: ryanstefanelli1@gmail.com</li>
+  <li>Discord Server: <a href="https://discord.gg/aFHaVbTFUY">https://discord.gg/aFHaVbTFUY</a></li>
+</ul>
+
+<p><strong>User Acceptance:</strong> By filling out the fields below and clicking "Accept," you confirm that you have read, understood, and agreed to the Terms of Service and Privacy Policy of Hamster Bot.</p>
+
+  </div>
+
+  <div style="margin-top:18px;">
+    <button class="accept-btn" id="acceptTermsBtn"> <span class="lang-it">Accetto i Termini</span><span class="lang-en" style="display:none">Accept Terms</span></button>
+    <div class="confirmation" id="confirmTerms">✅ <span class="lang-it">Hai accettato i Termini di Servizio</span><span class="lang-en" style="display:none">You have accepted the Terms of Service</span></div>
+  </div>
+</section>
+
+</div>
+<footer>© 2025Hamster Bot — All rights reserved. <br>Last update: 17 October 2025</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+<script>
+AOS.init();
+const navTerms=document.getElementById('linkTerms');
+const navPrivacy=document.getElementById('linkPrivacy');
+const navCollab=document.getElementById('linkCollab');
+const discordMain=document.getElementById('discordMain');
+const discordText=document.getElementById('discordText');
+const langToggle=document.getElementById('langToggle');
+
+// Toggle language: updates nav labels and shows/hides .lang-it / .lang-en blocks
+let en=false;
+function setLang(toEn){
+  en=Boolean(toEn);
+  document.querySelectorAll('.lang-it').forEach(el=>el.style.display = en ? 'none' : '');
+  document.querySelectorAll('.lang-en').forEach(el=>el.style.display = en ? '' : 'none');
+  navTerms.textContent = en ? 'Terms' : 'Termini';
+  navPrivacy.textContent = 'Privacy Policy';
+  navCollab.textContent = en ? 'Collaborate' : 'Collabora';
+  discordText.textContent = en ? 'Join our Discord' : 'Unisciti al nostro Discord';
+}
+// initial
+setLang(false);
+langToggle.addEventListener('click', ()=> setLang(!en));
+
+// Canvas particles (same as original)
+const canvas = document.getElementById('bgAnimation');
+const ctx = canvas.getContext('2d');
+let particles = [];
+function resize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+for(let i=0;i<120;i++){ particles.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*3+1,speedX:(Math.random()-0.5)*2,speedY:(Math.random()-0.5)*2}); }
+canvas.addEventListener('mousemove', e => {
+  particles.forEach(p => {
+    const dx = p.x - e.clientX;
+    const dy = p.y - e.clientY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if(dist<100){ p.x += dx*0.02; p.y += dy*0.02; }
+  });
+});
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.strokeStyle='rgba(211,47,47,0.5)';
+  particles.forEach(p=>{ p.x+=p.speedX; p.y+=p.speedY; if(p.x<0||p.x>canvas.width)p.speedX*=-1; if(p.y<0||p.y>canvas.height)p.speedY*=-1; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); });
+  for(let a=0;a<particles.length;a++){ for(let b=a+1;b<particles.length;b++){ const dx=particles[a].x-particles[b].x; const dy=particles[a].y-particles[b].y; const dist=Math.sqrt(dx*dx+dy*dy); if(dist<120){ ctx.beginPath(); ctx.moveTo(particles[a].x,particles[a].y); ctx.lineTo(particles[b].x,particles[b].y); ctx.stroke(); } } }
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>
