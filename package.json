@@ -4,11 +4,11 @@
   "description": "ReportBot Multi-Server con Dashboard e Backup",
   "main": "index.js",
 "scripts": {
-    "start": "node .",
-    "dashboard": "node dashboard/server.js",
-    "both": "node . & node dashboard/server.js",
-    "dev": "node . & node dashboard/server.js"
-  },
+  "start": "concurrently \"node index.js\" \"node dashboard/server.js\"",
+  "bot": "node index.js",
+  "dashboard": "node dashboard/server.js",
+  "dev": "concurrently \"node index.js\" \"node dashboard/server.js\""
+},
   "dependencies": {
     "body-parser": "^1.20.3",
     "concurrently": "^9.2.1",

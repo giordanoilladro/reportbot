@@ -2,7 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const fetch = require('node-fetch'); // npm install node-fetch@2
+const fetch = require('node-fetch');
 const path = require('path');
 const mongoose = require('mongoose');
 
@@ -10,7 +10,10 @@ const GuildSettings = require('../models/GuildSettings');
 const { getGuildConfig, setGuildConfig } = require('../utils/configManager');
 
 const app = express();
-const PORT = process.env.DASHBOARD_PORT || 3000;
+
+// === PORTA E HOST PER FLY.IO ===
+const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
 
 // === MONGO ===
 mongoose.connect(process.env.MONGO_URI)
@@ -32,8 +35,26 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // ===================================
-// 1. ROOT → HOME.HTML (PRIMA DI TUTTO!)
+// REDIRECT AUTOMATICO LOCALHOST → hamsterhouse.it
 // ===================================
+app.use((req, res, next) => {
+  const host = req.headers.host || '';
+  if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0')) {
+    return res.redirect(301, 'https://hamsterhouse.it' + req.originalUrl);
+  }
+  next();
+});
+
+// ===================================
+// ROTTE STATICHE
+// ===================================
+const pages = ['home', 'termini', 'privacy', 'collabora'];
+pages.forEach(page => {
+  app.get(`/${page}`, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/pages', `${page}.html`));
+  });
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/pages/home.html'));
 });
@@ -71,13 +92,12 @@ app.get('/auth/callback', async (req, res) => {
 
     const user = await userRes.json();
     const guilds = await guildsRes.json();
-
     const adminGuilds = guilds.filter(g => (g.permissions & 0x8) === 0x8 || g.owner);
 
     req.session.user = { id: user.id, username: user.username, avatar: user.avatar };
     req.session.guilds = adminGuilds;
 
-    res.redirect('/dashboard'); // ← DASHBOARD SU /dashboard
+    res.redirect('/dashboard');
   } catch (err) {
     console.error('OAuth2 error:', err);
     res.status(500).send('Errore autenticazione.');
@@ -95,7 +115,7 @@ const requireAuth = (req, res, next) => {
 };
 
 // ===================================
-// 2. DASHBOARD SU /dashboard
+// DASHBOARD
 // ===================================
 app.get('/dashboard', requireAuth, (req, res) => {
   res.render('dashboard', {
@@ -106,7 +126,6 @@ app.get('/dashboard', requireAuth, (req, res) => {
   });
 });
 
-// === GUILD PAGE ===
 app.get('/guild/:id', requireAuth, async (req, res) => {
   const guildId = req.params.id;
   if (!req.session.guilds.some(g => g.id === guildId)) {
@@ -132,7 +151,6 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
   }
 });
 
-// === SALVA CONFIG ===
 app.post('/guild/:id/save', requireAuth, async (req, res) => {
   const guildId = req.params.id;
   if (!req.session.guilds.some(g => g.id === guildId)) {
@@ -156,30 +174,14 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
 });
 
 // ===================================
-// 3. PAGINE STATICHE
+// AVVIO SERVER
 // ===================================
-app.get('/home', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/pages/home.html'));
-});
-
-app.get('/termini', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/pages/termini.html'));
-});
-
-app.get('/privacy', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/pages/privacy.html'));
-});
-
-app.get('/collabora', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/pages/collabora.html'));
-});
-
-// ===================================
-// 4. AVVIO
-// ===================================
-app.listen(PORT, () => {
-  console.log(`Server avviato: http://localhost:${PORT}`);
-  console.log(`Home: http://localhost:${PORT}/`);
-  console.log(`Dashboard: http://localhost:${PORT}/dashboard`);
-  console.log(`Pagine: /termini | /privacy | /collabora`);
+app.listen(PORT, HOST, () => {
+  const URL = 'https://hamsterhouse.it';
+  
+  console.log('HAMSTERHOUSE DASHBOARD ONLINE');
+  console.log(`APRI SUBITO → ${URL}`);
+  console.log(`Dashboard → ${URL}/dashboard`);
+  console.log(`Pagine → ${URL}/home | ${URL}/termini | ${URL}/privacy | ${URL}/collabora`);
+  console.log(`Login → ${URL}/login`);
 });
