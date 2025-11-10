@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/.env' });
 const express = require('express');
 const session = require('express-session');
 const fetch = require('node-fetch');
@@ -229,4 +229,4 @@ app.listen(PORT, HOST, () => {
   console.log('HAMSTERHOUSE DASHBOARD ONLINE');
   console.log(`APRI → ${BASE_URL}`);
   console.log(`Login → ${BASE_URL}/login`);
-});
+});pero
