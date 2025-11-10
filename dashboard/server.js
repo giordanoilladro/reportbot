@@ -10,22 +10,37 @@ const { getGuildConfig, setGuildConfig } = require('../utils/configManager');
 
 const app = express();
 
+// === CORS ===
+const cors = require('cors');
+
+// INSTALLA PRIMA: npm install cors
+app.use(cors({
+  origin: ['https://hamsterhouse.it', 'http://hamsterhouse.it'], // Permetti entrambi (HTTP/HTTPS)
+  credentials: true, // Necessario per le sessioni (cookie)
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 // === CONFIG ===
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
 const BASE_URL = 'https://hamsterhouse.it';
 
 // === MONGO ===
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connesso'))
-  .catch(err => console.error('MongoDB errore:', err));
+if (process.env.MONGO_URI) {
+  mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('MongoDB connesso'))
+    .catch(err => console.error('MongoDB errore:', err));
+} else {
+  console.warn('MONGO_URI mancante → DB disabilitato');
+}
 
 // === MIDDLEWARE ===
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || 'fallback_secret',
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 24 * 60 * 60 * 1000 }
@@ -45,7 +60,6 @@ app.use((req, res, next) => {
 // ===================================
 // ROTTE STATICHE PULITE
 // ===================================
-
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/pages/home.html'));
 });
@@ -63,21 +77,20 @@ staticPages.forEach(page => {
   });
 });
 
-// === OAUTH2 ===
+// === OAUTH2 LOGIN ===
 app.get('/login', (req, res) => {
   const url = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
   res.redirect(url);
 });
 
-// === CALLBACK CON FIX TOTALI ===
+// === CALLBACK CON FILTRO BOT ===
 app.get('/auth/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Errore: codice mancante.');
 
   try {
-    // === BODY STRINGA (fix "modulo non valido") ===
+    // === 1. SCAMBIO TOKEN ===
     const body = `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}`;
-
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -85,49 +98,53 @@ app.get('/auth/callback', async (req, res) => {
     });
 
     const tokens = await tokenResponse.json();
-    if (tokens.error) {
-      throw new Error(`Token error: ${tokens.error_description || tokens.error}`);
+    if (tokens.error || !tokens.access_token) {
+      throw new Error(tokens.error_description || 'Access token mancante');
     }
 
-    if (!tokens.access_token) {
-      throw new Error('Access token mancante');
-    }
-
-    // === FETCH UTENTE CON CONTROLLO ===
+    // === 2. OTTIENI UTENTE ===
     const userRes = await fetch('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
-
-    if (!userRes.ok) {
-      const err = await userRes.text();
-      throw new Error(`User fetch failed (${userRes.status}): ${err}`);
-    }
-
+    if (!userRes.ok) throw new Error('Errore utente');
     const user = await userRes.json();
 
-    // === FETCH GUILDS CON CONTROLLO ===
+    // === 3. OTTIENI TUTTI I SERVER DELL'UTENTE ===
     const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
-
-    let guilds = [];
-    if (guildsRes.ok) {
-      const data = await guildsRes.json();
-      if (Array.isArray(data)) {
-        guilds = data;
-      } else {
-        console.warn('Guilds non è array:', data);
-      }
-    } else {
-      console.warn('Guilds fetch fallita:', guildsRes.status, await guildsRes.text());
+    const userGuilds = guildsRes.ok ? await guildsRes.json() : [];
+    if (!Array.isArray(userGuilds)) {
+      console.warn('User guilds non è array:', userGuilds);
+      userGuilds = [];
     }
 
-    // === FILTRA ADMIN GUILDS (solo se array) ===
-    const adminGuilds = Array.isArray(guilds)
-      ? guilds.filter(g => g && ((g.permissions & 0x8) === 0x8 || g.owner))
-      : [];
+    // === 4. OTTIENI I SERVER DEL BOT (usando DISCORD_TOKEN) ===
+    let botGuildIds = [];
+    if (process.env.DISCORD_TOKEN) {
+      try {
+        const botRes = await fetch('https://discord.com/api/users/@me/guilds', {
+          headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` }
+        });
+        if (botRes.ok) {
+          const botGuilds = await botRes.json();
+          botGuildIds = Array.isArray(botGuilds) ? botGuilds.map(g => g.id) : [];
+          console.log(`Bot presente in ${botGuildIds.length} server`);
+        }
+      } catch (e) {
+        console.warn('Errore recupero server del bot:', e.message);
+      }
+    } else {
+      console.warn('DISCORD_TOKEN mancante → non posso filtrare i server');
+    }
 
-    // === SALVA SESSIONE ===
+    // === 5. FILTRA: admin/owner + bot presente ===
+    const adminGuilds = userGuilds.filter(g =>
+      botGuildIds.includes(g.id) &&
+      ((g.permissions & 0x8) === 0x8 || g.owner)
+    );
+
+    // === 6. SALVA SESSIONE ===
     req.session.user = {
       id: user.id,
       username: user.username,
@@ -136,7 +153,7 @@ app.get('/auth/callback', async (req, res) => {
     };
     req.session.guilds = adminGuilds;
 
-    console.log(`Login OK: ${user.username}#${user.discriminator} | Guilds: ${adminGuilds.length}`);
+    console.log(`Login OK: ${user.username}#${user.discriminator} | Guilds con bot: ${adminGuilds.length}`);
 
     res.redirect('/dashboard');
   } catch (err) {
@@ -219,14 +236,18 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
 // 404
 // ===================================
 app.use((req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'public/pages/404.html'));
+  const filePath = path.join(__dirname, 'public/pages/404.html');
+  res.status(404).sendFile(filePath, err => {
+    if (err) res.status(404).send('404 - Pagina non trovata');
+  });
 });
 
 // ===================================
-// AVVIO
+// AVVIO SERVER (OBBLIGATORIO PER FLY.IO)
 // ===================================
 app.listen(PORT, HOST, () => {
   console.log('HAMSTERHOUSE DASHBOARD ONLINE');
   console.log(`APRI → ${BASE_URL}`);
   console.log(`Login → ${BASE_URL}/login`);
-});pero
+  console.log(`Link diretto: https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`);
+});

@@ -7,16 +7,24 @@ let cache = null;
 
 function load() {
   if (cache) return cache;
+  
   if (!fs.existsSync(CONFIG_PATH)) {
-    cache = { guilds: {} };
+    cache = {}; // ← SENZA "guilds"
     save();
     return cache;
   }
+  
   try {
     cache = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+    // ← Converti struttura vecchia se esiste
+    if (cache.guilds) {
+      cache = cache.guilds;
+      save();
+    }
   } catch {
-    cache = { guilds: {} };
+    cache = {};
   }
+  
   return cache;
 }
 
@@ -24,58 +32,73 @@ function save() {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(cache, null, 2));
 }
 
-// --- LOG ---
+// --- FUNZIONI SPECIFICHE (compatibilità bot) ---
 function setLogChannel(guildId, id) {
   const c = load();
-  if (!c.guilds[guildId]) c.guilds[guildId] = {};
-  c.guilds[guildId].logChannelId = id;
+  if (!c[guildId]) c[guildId] = {};
+  c[guildId].logChannelId = id;
   save();
 }
 
 function getLogChannel(guildId) {
-  return load().guilds[guildId]?.logChannelId || null;
+  return load()[guildId]?.logChannelId || null;
 }
 
-// --- REPORT ---
 function setReportChannel(guildId, id) {
   const c = load();
-  if (!c.guilds[guildId]) c.guilds[guildId] = {};
-  c.guilds[guildId].reportChannelId = id;
+  if (!c[guildId]) c[guildId] = {};
+  c[guildId].report = c[guildId].report || {};
+  c[guildId].report.channelId = id;
   save();
 }
 
 function getReportChannel(guildId) {
-  return load().guilds[guildId]?.reportChannelId || null;
+  return load()[guildId]?.report?.channelId || null;
 }
 
-// --- STAFF ROLE ---
 function setStaffRole(guildId, id) {
   const c = load();
-  if (!c.guilds[guildId]) c.guilds[guildId] = {};
-  c.guilds[guildId].staffRoleId = id;
+  if (!c[guildId]) c[guildId] = {};
+  c[guildId].setup = c[guildId].setup || {};
+  c[guildId].setup.muteRoleId = id; // ← Usa nome dashboard
   save();
 }
 
 function getStaffRole(guildId) {
-  return load().guilds[guildId]?.staffRoleId || null;
+  return load()[guildId]?.setup?.muteRoleId || null;
 }
 
-// --- CONFIG GENERICA (PER DASHBOARD) ---
+// --- DASHBOARD (compatibile con form) ---
 function getGuildConfig(guildId) {
-  return load().guilds[guildId] || {};
+  return load()[guildId] || {};
 }
 
 function setGuildConfig(guildId, data) {
   const c = load();
-  if (!c.guilds[guildId]) c.guilds[guildId] = {};
-  Object.assign(c.guilds[guildId], data);
+  if (!c[guildId]) c[guildId] = {};
+  
+  // Mappa TUTTI i campi del form
+  Object.keys(data).forEach(key => {
+    if (key === 'logChannelId') {
+      c[guildId][key] = data[key] || '';
+    }
+    else if (key === 'setup' && data.setup) {
+      c[guildId].setup = { ...c[guildId].setup, ...data.setup };
+    }
+    else if (key === 'verify' && data.verify) {
+      c[guildId].verify = { ...c[guildId].verify, ...data.verify };
+    }
+    else if (key === 'report' && data.report) {
+      c[guildId].report = { ...c[guildId].report, ...data.report };
+    }
+  });
+  
   save();
 }
 
 module.exports = {
   setLogChannel, getLogChannel,
   setReportChannel, getReportChannel,
-  setStaffRole, getStaffRole, 
-  getGuildConfig,
-  setGuildConfig
+  setStaffRole, getStaffRole,
+  getGuildConfig, setGuildConfig
 };
