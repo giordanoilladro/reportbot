@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const GuildSettings = require('../models/GuildSettings');
+const GuildSettings = require('../models/GuildReaction'); // <-- usa il modello che preferisci
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
@@ -28,7 +28,44 @@ module.exports = {
     // === GESTIONE BOTTONI ===
     else if (interaction.isButton()) {
 
-      // --- VERIFICA ---
+      // --- REACTION ROLES (NUOVO!) ---
+      if (interaction.customId.startsWith('rr_')) {
+        const roleId = interaction.customId.replace('rr_', '');
+        const guildId = interaction.guild.id;
+
+        // Carica config da servers.json
+        let servers = {};
+        try {
+          if (fs.existsSync('./data/servers.json')) {
+            servers = JSON.parse(fs.readFileSync('./data/servers.json', 'utf-8'));
+          }
+        } catch (err) {
+          console.error('Errore lettura servers.json:', err);
+          return interaction.reply({ content: 'Errore interno, riprova più tardi.', ephemeral: true });
+        }
+
+        const config = servers[guildId]?.reactionroles;
+        if (!config?.enabled) return;
+
+        const role = interaction.guild.roles.cache.get(roleId);
+        if (!role) return interaction.reply({ content: 'Ruolo non trovato!', ephemeral: true });
+
+        try {
+          if (interaction.member.roles.cache.has(roleId)) {
+            await interaction.member.roles.remove(roleId);
+            await interaction.reply({ content: `Ruolo **${role.name}** rimosso!`, ephemeral: true });
+          } else {
+            await interaction.member.roles.add(roleId);
+            await interaction.reply({ content: `Ruolo **${role.name}** aggiunto!`, ephemeral: true });
+          }
+        } catch (err) {
+          console.error('Errore gestione ruolo:', err);
+          await interaction.reply({ content: 'Non ho i permessi per gestire questo ruolo!', ephemeral: true });
+        }
+        return; // <-- IMPORTANTE: blocca le altre gestioni
+      }
+
+      // --- VERIFICA (ESISTENTE - INALTERATO) ---
       if (interaction.customId.startsWith('verify_button_')) {
         const guildId = interaction.customId.split('_').pop();
         if (interaction.guild.id !== guildId) return;
@@ -38,7 +75,6 @@ module.exports = {
         const settings = await GuildSettings.findOne({ guildId: interaction.guild.id });
         const verify = settings?.verify;
 
-        // Controlli
         if (!verify?.enabled || !verify.roleId) {
           return interaction.editReply({ content: 'Verifica non disponibile.' });
         }
@@ -50,7 +86,6 @@ module.exports = {
         }
 
         try {
-          // Assegna il ruolo
           await interaction.member.roles.add(role);
 
           // === DM DI BENVENUTO ===
@@ -67,7 +102,7 @@ module.exports = {
             console.log(`Impossibile inviare DM a ${interaction.user.tag}`);
           }
 
-          // === LOG NEL CANALE STAFF (se configurato) ===
+          // === LOG NEL CANALE STAFF ===
           if (settings?.logChannelId) {
             const logChannel = interaction.guild.channels.cache.get(settings.logChannelId);
             if (logChannel) {
@@ -89,7 +124,6 @@ module.exports = {
             }
           }
 
-          // === RISPOSTA ALL'UTENTE ===
           const successEmbed = new EmbedBuilder()
             .setTitle('Verificato!')
             .setDescription('Benvenuto nel server!\nControlla i tuoi DM per un messaggio speciale.')
@@ -102,6 +136,7 @@ module.exports = {
           console.error('Errore assegnazione ruolo:', err);
           await interaction.editReply({ content: 'Errore: non posso assegnarti il ruolo.' });
         }
+        return;
       }
 
       // --- TEST BENVENUTO ---
