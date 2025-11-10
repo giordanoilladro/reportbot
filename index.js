@@ -28,13 +28,14 @@ try {
 }
 
 let serverConfig;
-const config1Path = path.join(__dirname, 'config1.json');
+const config1Path = '/data/config1.json'; // ← STESSO PERCORSO DELLA DASHBOARD
+
 try {
   serverConfig = JSON.parse(fs.readFileSync(config1Path, 'utf8'));
-  console.log('config1.json caricato');
+  console.log('config1.json caricato da /data');
 } catch (err) {
-  console.warn('config1.json non trovato. Creo uno vuoto...');
-  serverConfig = { guilds: {} };
+  console.warn('config1.json non trovato in /data. Creo uno vuoto...');
+  serverConfig = {}; // ← STRUTTURA SENZA "guilds"
   fs.writeFileSync(config1Path, JSON.stringify(serverConfig, null, 2));
 }
 

@@ -5,7 +5,8 @@ const {
 const fs = require('fs');
 const path = require('path');
 
-const reportsPath = path.join(__dirname, '../../reports.json');
+// Usa /data/ per persistenza su Fly.io
+const reportsPath = '/data/reports.json';
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -25,26 +26,28 @@ module.exports = {
 
   async execute(interaction) {
     const guild = interaction.guild;
-    const config = interaction.client.serverConfig;
-    const guildConfig = config.guilds?.[guild.id];
+    const client = interaction.client;
 
-    // === CONTROLLO PERMESSI: solo staffRoleId ===
-    if (!guildConfig?.staffRoleId || !interaction.member.roles.cache.has(guildConfig.staffRoleId)) {
+    // CORRETTO: usa client.serverConfig (struttura piatta)
+    const guildConfig = client.serverConfig[guild.id] || {};
+
+    // CONTROLLO PERMESSI
+    if (!guildConfig.staffRoleId || !interaction.member.roles.cache.has(guildConfig.staffRoleId)) {
       return interaction.reply({ 
         content: 'Non hai i permessi per usare questo comando.', 
         ephemeral: true 
       });
     }
 
-    // === CARICA REPORTS ===
+    // CARICA REPORTS DA /data/
     let reports = {};
     try {
-      reports = JSON.parse(fs.readFileSync(reportsPath, 'utf8'));
+      const data = fs.readFileSync(reportsPath, 'utf8');
+      reports = JSON.parse(data);
     } catch (err) {
-      return interaction.reply({ 
-        content: 'Errore nel caricamento dei report.', 
-        ephemeral: true 
-      });
+      // Crea file vuoto se non esiste
+      reports = {};
+      fs.writeFileSync(reportsPath, JSON.stringify(reports, null, 2));
     }
 
     const filterStatus = interaction.options.getString('status');
@@ -70,7 +73,6 @@ module.exports = {
       });
     }
 
-    // === EMBED PRINCIPALE ===
     const embed = new EmbedBuilder()
       .setColor('#ff8800')
       .setTitle(`Report del Server (${filtered.length})`)
@@ -81,14 +83,12 @@ module.exports = {
       )
       .setTimestamp();
 
-    // === AGGIUNGI FINO A 10 REPORT ===
     for (const r of filtered.slice(0, 10)) {
-      const target = await interaction.client.users.fetch(r.targetId).catch(() => ({ tag: 'Utente Sconosciuto', id: r.targetId }));
-      const reporter = await interaction.client.users.fetch(r.reporterId).catch(() => ({ tag: 'Utente Sconosciuto' }));
-      const handler = r.handledBy ? await interaction.client.users.fetch(r.handledBy).catch(() => ({ tag: 'Staff Sconosciuto' })) : null;
+      const target = await client.users.fetch(r.targetId).catch(() => ({ tag: 'Utente Sconosciuto', id: r.targetId }));
+      const reporter = await client.users.fetch(r.reporterId).catch(() => ({ tag: 'Utente Sconosciuto' }));
+      const handler = r.handledBy ? await client.users.fetch(r.handledBy).catch(() => ({ tag: 'Staff Sconosciuto' })) : null;
 
       const statusEmoji = r.status === 'pending' ? 'Pendente' : r.status === 'accepted' ? 'Accettato' : 'Rifiutato';
-      const statusText = r.status === 'pending' ? 'Pendente' : r.status === 'accepted' ? 'Accettato' : 'Rifiutato';
 
       embed.addFields({
         name: `${statusEmoji} Report #${r.reportId.slice(-8)}`,
@@ -96,7 +96,7 @@ module.exports = {
           `**Segnalato:** ${target} (\`${r.targetId}\`)`,
           `**Da:** ${reporter.tag}`,
           `**Motivo:** ${r.reason.substring(0, 100)}${r.reason.length > 100 ? '...' : ''}`,
-          `**Stato:** ${statusText}${handler ? ` da ${handler}` : ''}`,
+          `**Stato:** ${statusEmoji}${handler ? ` da ${handler}` : ''}`,
           `**Data:** <t:${Math.floor(r.timestamp / 1000)}:R>`
         ].join('\n'),
         inline: false

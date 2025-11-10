@@ -4,9 +4,7 @@ const {
   PermissionFlagsBits 
 } = require('discord.js');
 const fs = require('fs');
-const path = require('path');
 
-// Usa client.serverConfig e client.config1Path (passati da index.js)
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('config')
@@ -21,11 +19,13 @@ module.exports = {
             .setName('channel')
             .setDescription('Canale dove inviare i report')
             .addChannelTypes(0)
+            .setRequired(false)
         )
         .addRoleOption(option =>
           option
             .setName('role')
             .setDescription('Ruolo staff da pingare')
+            .setRequired(false)
         )
     )
     .addSubcommand(sub =>
@@ -36,13 +36,12 @@ module.exports = {
 
   async execute(interaction) {
     const client = interaction.client;
-    const config = client.serverConfig;
-    const configPath = client.config1Path;
+    const config = client.serverConfig; // ← STRUTTURA PIATTA: { "guildId": { ... } }
+    const configPath = client.config1Path; // ← '/data/config1.json'
     const guildId = interaction.guild.id;
 
-    // Inizializza
-    if (!config.guilds) config.guilds = {};
-    if (!config.guilds[guildId]) config.guilds[guildId] = {};
+    // INIZIALIZZA (struttura piatta)
+    if (!config[guildId]) config[guildId] = {};
 
     if (interaction.options.getSubcommand() === 'report') {
       const channel = interaction.options.getChannel('channel');
@@ -55,10 +54,17 @@ module.exports = {
         });
       }
 
-      if (channel) config.guilds[guildId].reportChannelId = channel.id;
-      if (role) config.guilds[guildId].staffRoleId = role.id;
+      // SALVA IN STRUTTURA DASHBOARD
+      if (channel) {
+        if (!config[guildId].report) config[guildId].report = {};
+        config[guildId].report.channelId = channel.id;
+      }
+      if (role) {
+        if (!config[guildId].setup) config[guildId].setup = {};
+        config[guildId].setup.muteRoleId = role.id; // ← NOME DASHBOARD
+      }
 
-      // Salva
+      // SALVA SU /data/config1.json
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
       const embed = new EmbedBuilder()
@@ -75,9 +81,9 @@ module.exports = {
     }
 
     else if (interaction.options.getSubcommand() === 'view') {
-      const g = config.guilds[guildId] || {};
-      const channel = g.reportChannelId ? `<#${g.reportChannelId}>` : 'Non impostato';
-      const role = g.staffRoleId ? `<@&${g.staffRoleId}>` : 'Non impostato';
+      const g = config[guildId] || {};
+      const channel = g.report?.channelId ? `<#${g.report.channelId}>` : 'Non impostato';
+      const role = g.setup?.muteRoleId ? `<@&${g.setup.muteRoleId}>` : 'Non impostato';
 
       const embed = new EmbedBuilder()
         .setColor('#0099ff')
