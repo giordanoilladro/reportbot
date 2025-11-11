@@ -3,173 +3,346 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ReportBot - Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>ReportBot Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    :root { --primary: #5865F2; --bg: #0f0f1a; --card: #1a1a2e; --border: rgba(255,255,255,0.1); --success: #10b981; --danger: #ef4444; }
+    :root {
+      --primary: #5865F2;
+      --primary-light: #7c89f5;
+      --success: #10b981;
+      --danger: #ef4444;
+      --dark: #1a1a2e;
+      --darker: #0f0f1a;
+      --gray: #2d2d44;
+      --light: #e0e7ff;
+      --border: rgba(255,255,255,0.1);
+      --radius: 16px;
+      --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Inter',sans-serif; background:#0f0f1a; color:#e0e7ff; min-height:100vh; }
-    .container { display:flex; }
-    .sidebar { width:280px; background:rgba(15,15,26,0.95); border-right:1px solid var(--border); padding:24px; position:fixed; height:100vh; backdrop-filter:blur(10px); }
-    .main { margin-left:280px; padding:40px; width:100%; }
-    .card { background:rgba(26,26,46,0.9); border:1px solid var(--border); border-radius:16px; padding:32px; max-width:1000px; margin:0 auto; box-shadow:0 20px 40px rgba(0,0,0,0.3); }
-    .btn { padding:14px 28px; background:var(--primary); color:white; border:none; border-radius:12px; cursor:pointer; font-weight:700; transition:all 0.3s; }
-    .btn:hover { background:#7c89f5; transform:translateY(-2px); }
-    .btn-success { background:var(--success); }
-    .btn-danger { background:var(--danger); }
-    .form-input, .form-select, .form-textarea { width:100%; padding:14px; background:rgba(45,45,68,0.9); border:1px solid var(--border); border-radius:12px; color:white; font-size:1rem; }
-    .form-input:focus, .form-select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(88,101,242,0.3); }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-    .role-row { background:rgba(45,45,68,0.7); padding:20px; border-radius:14px; border:2px solid rgba(88,101,242,0.5); margin:16px 0; position:relative; }
-    .remove-btn { position:absolute; top:10px; right:10px; background:var(--danger); color:white; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.2rem; }
-    .notification { position:fixed; bottom:30px; right:30px; padding:18px 32px; border-radius:16px; color:white; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,0.4); z-index:9999; transform:translateY(100px); opacity:0; transition:all 0.4s; }
+    body {
+      font-family:'Inter',sans-serif;
+      background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 100%);
+      color:#e0e7ff;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+    .sidebar {
+      position:fixed; left:0; top:0; width:280px; height:100vh;
+      background:rgba(15,15,26,0.8); backdrop-filter:blur(12px);
+      border-right:1px solid var(--border); padding:24px 16px;
+      display:flex; flex-direction:column; z-index:100;
+    }
+    .user-info {
+      display:flex; align-items:center; gap:12px; padding:12px;
+      border-radius:var(--radius); background:rgba(255,255,255,0.05);
+      margin-bottom:24px;
+    }
+    .avatar { width:48px; height:48px; border-radius:50%; border:2px solid var(--primary); }
+    .username { font-weight:600; color:#fff; }
+    .logout { color:#ef4444; text-decoration:none; font-size:0.8rem; }
+    .server-list { flex:1; overflow-y:auto; margin:16px 0; }
+    .server-item {
+      display:flex; align-items:center; gap:12px; padding:10px 12px;
+      border-radius:12px; color:#b0b7d0; text-decoration:none; margin:6px 0;
+      transition:var(--transition); position:relative;
+    }
+    .server-item:hover, .server-item.active {
+      background:rgba(88,101,242,0.15); color:#fff; transform:translateX(4px);
+    }
+    .server-item.active::before {
+      content:''; position:absolute; left:0; top:0; width:4px; height:100%;
+      background:var(--primary);
+    }
+    .server-icon {
+      width:36px; height:36px; border-radius:50%; background:var(--gray);
+      display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;
+    }
+    .external-links {
+      border-top:1px solid var(--border); padding-top:16px;
+    }
+    .external-links h3 {
+      font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em;
+      color:#9ca3af; margin-bottom:12px; font-weight:600;
+    }
+    .external-link {
+      display:flex; align-items:center; gap:10px; padding:10px 12px;
+      border-radius:10px; color:#b0b7d0; text-decoration:none;
+      font-size:0.9rem; transition:var(--transition);
+    }
+    .external-link:hover {
+      background:rgba(255,255,255,0.08); color:#fff; transform:translateX(6px);
+    }
+    .main-content { margin-left:280px; padding:32px; min-height:100vh; }
+    .card {
+      background:rgba(15,15,26,0.6); backdrop-filter:blur(16px);
+      border:1px solid var(--border); border-radius:var(--radius);
+      padding:28px; max-width:900px; margin:0 auto;
+      box-shadow:0 20px 40px rgba(0,0,0,0.3);
+    }
+    .guild-header {
+      display:flex; align-items:center; gap:16px; margin-bottom:28px;
+      padding-bottom:16px; border-bottom:1px solid var(--border);
+    }
+    .guild-icon-large {
+      width:72px; height:72px; border-radius:50%;
+      border:3px solid var(--primary); box-shadow:0 0 20px rgba(88,101,242,0.5);
+    }
+    .tabs {
+      display:flex; gap:8px; margin-bottom:24px; border-bottom:1px solid var(--border);
+    }
+    .tab-btn {
+      padding:12px 20px; background:transparent; border:none;
+      color:#9ca3af; font-weight:500; border-radius:12px 12px 0 0;
+      cursor:pointer; position:relative; transition:var(--transition);
+    }
+    .tab-btn::after {
+      content:''; position:absolute; bottom:-1px; left:50%; width:0; height:3px;
+      background:var(--primary); transition:var(--transition); transform:translateX(-50%);
+    }
+    .tab-btn:hover, .tab-btn.active { color:#fff; background:rgba(88,101,242,0.15); }
+    .tab-btn.active::after { width:60%; }
+    .tab-content { display:none; }
+    .form-group { margin-bottom:20px; }
+    .form-group label { display:block; margin-bottom:8px; font-weight:500; }
+    .form-select, .form-input, .form-textarea {
+      width:100%; padding:12px 16px; background:rgba(45,45, aiuto68,0.6);
+      border:1px solid var(--border); border-radius:10px; color:#fff;
+    }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .btn {
+      padding:12px 24px; border:none; border-radius:12px; font-weight:600;
+      cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+      transition: var(--transition);
+    }
+    .btn-primary { background:var(--primary); color:white; }
+    .btn-primary:hover { background:var(--primary-light); transform:translateY(-2px); }
+    .role-row {
+      background:rgba(45,45,68,0.5); padding:16px; border-radius:12px;
+      border:1px solid rgba(88,101,242,0.3); margin:12px 0;
+    }
+    .mt-4 { margin-top:24px; }
+    .notification {
+      position:fixed; bottom:24px; right:24px; padding:16px 28px;
+      border-radius:16px; color:white; box-shadow:0 12px 32px rgba(0,0,0,0.3);
+      transform:translateY(100px); opacity:0; transition:all 0.4s ease;
+      display:flex; align-items:center; gap:10px; min-width:300px;
+    }
     .notification.show { transform:translateY(0); opacity:1; }
-    .success { background:linear-gradient(135deg,#10b981,#059669); }
-    .error { background:linear-gradient(135deg,#ef4444,#dc2626); }
+    .notification.success { background:linear-gradient(135deg,#10b981,#059669); }
+    .notification.error { background:linear-gradient(135deg,#ef4444,#dc2626); }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="sidebar">
-      <h2 style="color:#5865F2; font-size:1.8rem; margin-bottom:24px; text-align:center;">ReportBot</h2>
-      <div style="text-align:center; margin-bottom:32px;">
-        <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.webp?size=128" style="width:90px; height:90px; border-radius:50%; border:5px solid #5865F2; box-shadow:0 0 20px rgba(88,101,242,0.5);">
-        <p style="margin-top:12px; font-weight:700; font-size:1.1rem;"><%= user.username %></p>
-        <a href="/logout" style="color:#ef4444; font-size:0.9rem; text-decoration:none;">Logout</a>
-      </div>
-      <strong style="color:#9ca3af; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px;">I tuoi server</strong>
-      <div style="margin-top:12px;">
-        <% guilds.forEach(g => { %>
-          <a href="/guild/<%= g.id %>" style="display:flex; align-items:center; gap:12px; padding:12px; background:<%= selectedGuild?.id === g.id ? 'rgba(88,101,242,0.3)' : 'transparent' %>; border-radius:12px; margin:8px 0; color:white; text-decoration:none; font-weight:500; transition:all 0.3s;">
-            <% if(g.icon) { %>
-              <img src="https://cdn.discordapp.com/icons/<%= g.id %>/<%= g.icon %>.webp?size=64" style="width:40px; height:40px; border-radius:50%;">
-            <% } else { %>
-              <div style="width:40px; height:40px; background:#5865F2; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;"><%= g.name[0] %></div>
-            <% } %>
-            <span><%= g.name %></span>
-          </a>
-        <% }) %>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="user-info">
+      <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.webp?size=64" alt="Avatar" class="avatar">
+      <div>
+        <div class="username"><%= user.username %></div>
+        <a href="/logout" class="logout">Logout</a>
       </div>
     </div>
+    <div class="server-list">
+      <% guilds.forEach(g => { %>
+        <a href="/guild/<%= g.id %>" class="server-item <%= selectedGuild?.id === g.id ? 'active' : '' %>">
+          <% if (g.icon) { %>
+            <img src="https://cdn.discordapp.com/icons/<%= g.id %>/<%= g.icon %>.webp?size=32" class="server-icon">
+          <% } else { %>
+            <div class="server-icon"><%= g.name.charAt(0) %></div>
+          <% } %>
+          <span class="server-name"><%= g.name %></span>
+        </a>
+      <% }) %>
+    </div>
+    <div class="external-links">
+      <h3>Pagine</h3>
+      <a href="/home" class="external-link">Home <span>Home</span></a>
+      <a href="/termini" class="external-link">Termini <span>Termini</span></a>
+      <a href="/privacy" class="external-link">Privacy <span>Privacy</span></a>
+      <a href="/collabora" class="external-link">Collabora <span>Collabora</span></a>
+    </div>
+  </div>
 
-    <div class="main">
-      <% if (!selectedGuild) { %>
-        <div class="card">
-          <h1 style="font-size:2.5rem; color:#5865F2; text-align:center;">Benvenuto su ReportBot</h1>
-          <p style="margin-top:24px; font-size:1.2rem; text-align:center; color:#b0b7d0;">Seleziona un server dalla barra laterale per iniziare la configurazione.</p>
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <% if (!selectedGuild) { %>
+      <div class="card">
+        <h1>ReportBot Dashboard</h1>
+        <p>Seleziona un server dalla sidebar per iniziare la configurazione.</p>
+      </div>
+    <% } else { %>
+      <div class="card">
+        <div class="guild-header">
+          <% if (selectedGuild.icon) { %>
+            <img src="https://cdn.discordapp.com/icons/<%= selectedGuild.id %>/<%= selectedGuild.icon %>.webp?size=80" class="guild-icon-large">
+          <% } else { %>
+            <div class="guild-icon-large" style="background:#5865F2;display:flex;align-items:center;justify-content:center;color:white;font-size:2rem;font-weight:700;">
+              <%= selectedGuild.name.charAt(0) %>
+            </div>
+          <% } %>
+          <div class="guild-info">
+            <h2><%= selectedGuild.name %></h2>
+            <p>ID: <%= selectedGuild.id %></p>
+          </div>
         </div>
-      <% } else { %>
-        <div class="card">
-          <h1 style="color:#5865F2; font-size:2rem; margin-bottom:8px;"><%= selectedGuild.name %></h1>
-          <p style="color:#9ca3af; margin-bottom:32px;">ID: <%= selectedGuild.id %></p>
 
-          <form id="configForm">
-            <input type="hidden" name="guildId" value="<%= selectedGuild.id %>">
-            <input type="hidden" name="reactionroles.messageId" value="<%= settings.reactionroles?.messageId || '' %>">
+        <form id="configForm">
+          <input type="hidden" name="guildId" value="<%= selectedGuild.id %>">
+          <input type="hidden" name="reactionroles.messageId" value="<%= settings.reactionroles?.messageId || '' %>">
 
-            <h2 style="color:#5865F2; font-size:1.6rem; margin:32px 0 24px;">Reaction Roles</h2>
+          <div class="tabs">
+            <button type="button" class="tab-btn active" onclick="openTab('general')">Generale</button>
+            <button type="button" class="tab-btn" onclick="openTab('verify')">Verifica</button>
+            <button type="button" class="tab-btn" onclick="openTab('report')">Report</button>
+            <button type="button" class="tab-btn" onclick="openTab('reactionroles')">Reaction Roles</button>
+          </div>
 
-            <div class="grid">
-              <div>
-                <label style="display:block; margin-bottom:8px; font-weight:600;">Canale del messaggio</label>
+          <!-- TAB GENERALE -->
+          <div id="general" class="tab-content">
+            <div class="grid-2">
+              <div class="form-group">
+                <label>Canale Log</label>
+                <input type="text" name="logChannelId" class="form-input" value="<%= settings.logChannelId || '' %>" placeholder="123456789012345678">
+              </div>
+              <div class="form-group">
+                <label>Ruolo Mute</label>
+                <input type="text" name="setup.muteRoleId" class="form-input" value="<%= settings.setup?.muteRoleId || '' %>" placeholder="987654321098765432">
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB VERIFICA -->
+          <div id="verify" class="tab-content" style="display:none">
+            <div class="form-group">
+              <label>
+                <input type="checkbox" name="verify.enabled" <%= settings.verify?.enabled ? 'checked' : '' %>>
+                Abilita sistema di verifica
+              </label>
+            </div>
+          </div>
+
+          <!-- TAB REPORT -->
+          <div id="report" class="tab-content" style="display:none">
+            <div class="form-group">
+              <label>Canale Report</label>
+              <input type="text" name="report.channelId" class="form-input" value="<%= settings.report?.channelId || '' %>" placeholder="111222333444555666">
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" name="report.requireReason" <%= settings.report?.requireReason ? 'checked' : '' %>>
+                Richiedi motivo nel report
+              </label>
+            </div>
+          </div>
+
+          <!-- TAB REACTION ROLES -->
+          <div id="reactionroles" class="tab-content" style="display:none">
+            <div class="form-group">
+              <label>
+                <input type="checkbox" name="reactionroles.enabled" <%= settings.reactionroles?.enabled ? 'checked' : '' %>>
+                Abilita Reaction Roles
+              </label>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label>Canale</label>
                 <select name="reactionroles.channelId" class="form-select">
-                  <option value="">Seleziona un canale...</option>
-                  <% selectedGuild.channels.cache
-                    .filter(c => c.type === 0)
-                    .sort((a,b) => a.position - b.position)
-                    .forEach(ch => { %>
-                    <option value="<%= ch.id %>" <%= settings.reactionroles?.channelId === ch.id ? 'selected' : '' %>>
-                      #<%= ch.name %>
-                    </option>
+                  <option value="">Seleziona canale...</option>
+                  <% selectedGuild.channels.cache.filter(c => c.type === 0).sort((a,b) => a.position - b.position).forEach(ch => { %>
+                    <option value="<%= ch.id %>" <%= settings.reactionroles?.channelId === ch.id ? 'selected' : '' %>>#<%= ch.name %></option>
                   <% }) %>
                 </select>
               </div>
-              <div>
-                <label style="display:block; margin-bottom:8px; font-weight:600;">Titolo embed</label>
-                <input type="text" name="reactionroles.title" class="form-input" value="<%= settings.reactionroles?.title || 'Scegli i tuoi ruoli!' %>">
+              <div class="form-group">
+                <label>Colore embed (HEX)</label>
+                <input type="text" name="reactionroles.color" class="form-input" value="<%= settings.reactionroles?.color || '#5865F2' %>">
               </div>
             </div>
 
-            <div style="margin:24px 0;">
-              <label style="display:block; margin-bottom:8px; font-weight:600;">Descrizione</label>
-              <textarea name="reactionroles.description" class="form-textarea" rows="3"><%= settings.reactionroles?.description || 'Clicca sui pulsanti qui sotto per ottenere i ruoli!' %></textarea>
+            <div class="form-group">
+              <label>Titolo embed</label>
+              <input type="text" name="reactionroles.title" class="form-input" value="<%= settings.reactionroles?.title || 'Scegli i tuoi ruoli!' %>">
+            </div>
+
+            <div class="form-group">
+              <label>Descrizione</label>
+              <textarea name="reactionroles.description" class="form-textarea"><%= settings.reactionroles?.description || 'Clicca sui pulsanti qui sotto per ottenere i ruoli che preferisci!' %></textarea>
             </div>
 
             <div id="roles-container">
               <% (settings.reactionroles?.roles || []).forEach((r, i) => { %>
                 <div class="role-row">
-                  <button type="button" class="remove-btn" onclick="this.parentElement.remove()">X</button>
-                  <div class="grid">
-                    <div>
-                      <label>Ruolo</label>
-                      <select name="reactionroles.roles[<%= i %>].roleId" class="form-select">
-                        <option value="">Seleziona ruolo...</option>
-                        <% selectedGuild.roles.cache
-                          .sort((a,b) => b.position - a.position)
-                          .forEach(role => { %>
-                          <option value="<%= role.id %>" <%= r.roleId === role.id ? 'selected' : '' %>><%= role.name %></option>
-                        <% }) %>
-                      </select>
-                    </div>
-                    <div>
-                      <label>Testo pulsante</label>
-                      <input type="text" name="reactionroles.roles[<%= i %>].label" class="form-input" value="<%= r.label || '' %>" placeholder="es. Gamer">
-                    </div>
+                  <div class="grid-2">
+                    <select class="form-select" name="reactionroles.roles[<%= i %>].roleId">
+                      <option value="">Seleziona ruolo...</option>
+                      <% selectedGuild.roles.cache.sort((a,b) => b.position - a.position).forEach(role => { %>
+                        <option value="<%= role.id %>" <%= r.roleId === role.id ? 'selected' : '' %>><%= role.name %></option>
+                      <% }) %>
+                    </select>
+                    <input type="text" name="reactionroles.roles[<%= i %>].label" class="form-input" value="<%= r.label || '' %>" placeholder="Testo pulsante">
                   </div>
+                  <button type="button" class="btn" style="background:#ef4444; margin-top:8px;" onclick="this.closest('.role-row').remove()">
+                    Rimuovi
+                  </button>
                 </div>
               <% }) %>
             </div>
 
-            <div style="margin:32px 0;">
-              <button type="button" onclick="addRole()" class="btn btn-success" style="margin-right:12px;">
-                + Aggiungi Ruolo
-              </button>
-              <button type="button" onclick="sendMessage()" class="btn" style="background:#5865F2;">
-                Invia / Aggiorna Messaggio
-              </button>
-              <button type="submit" class="btn" style="margin-left:12px; background:#10b981;">
-                Salva Configurazione
-              </button>
-            </div>
-          </form>
-        </div>
-      <% } %>
-    </div>
+            <button type="button" onclick="addRoleRow()" class="btn btn-primary" style="margin:16px 0;">
+              + Aggiungi Ruolo
+            </button>
+
+            <button type="button" onclick="sendReactionRoleMessage()" class="btn btn-primary">
+              Invia / Aggiorna Messaggio
+            </button>
+          </div>
+
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Salva Configurazione</button>
+          </div>
+        </form>
+      </div>
+    <% } %>
   </div>
 
   <script>
     const guildId = "<%= selectedGuild ? selectedGuild.id : '' %>";
 
-    function addRole() {
-      if (!guildId) return showNotif("Seleziona un server prima!", true);
+    function openTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      document.querySelector(`[onclick="openTab('${tab}')"]`).classList.add('active');
+      document.getElementById(tab).style.display = 'block';
+    }
+
+    function addRoleRow() {
+      if (!guildId) return alert("Seleziona un server!");
       const container = document.getElementById('roles-container');
       const index = container.children.length;
       const div = document.createElement('div');
       div.className = 'role-row';
       div.innerHTML = `
-        <button type="button" class="remove-btn" onclick="this.parentElement.remove()">X</button>
-        <div class="grid">
-          <div>
-            <label>Ruolo</label>
-            <select name="reactionroles.roles[${index}].roleId" class="form-select">
-              <option value="">Seleziona ruolo...</option>
-              ${Array.from(selectedGuild.roles.cache.sort((a,b) => b.position - a.position).values())
-                .map(r => `<option value="${r.id}">${r.name}</option>`).join('')}
-            </select>
-          </div>
-          <div>
-            <label>Testo pulsante</label>
-            <input type="text" name="reactionroles.roles[${index}].label" class="form-input" placeholder="es. Member">
-          </div>
+        <div class="grid-2">
+          <select class="form-select" name="reactionroles.roles[${index}].roleId">
+            <option value="">Seleziona ruolo...</option>
+            ${Array.from(selectedGuild.roles.cache.sort((a,b) => b.position - a.position).values())
+              .map(r => `<option value="${r.id}">${r.name}</option>`).join('')}
+          </select>
+          <input type="text" name="reactionroles.roles[${index}].label" class="form-input" placeholder="Testo pulsante">
         </div>
+        <button type="button" class="btn" style="background:#ef4444; margin-top:8px;" onclick="this.closest('.role-row').remove()">
+          Rimuovi
+        </button>
       `;
       container.appendChild(div);
     }
 
-    async function sendMessage() {
-      if (!guildId) return showNotif("Seleziona un server!", true);
-
+    async function sendReactionRoleMessage() {
+      if (!guildId) return showNotification("Seleziona un server!", true);
+      
       const form = document.getElementById('configForm');
       const data = new FormData(form);
       const roles = [];
@@ -177,11 +350,9 @@
       document.querySelectorAll('.role-row').forEach(row => {
         const roleId = row.querySelector('select')?.value;
         const label = row.querySelector('input')?.value;
-        if (roleId) {
-          roles.push({ roleId, label: label || null });
-        }
+        if (roleId) roles.push({ roleId, label: label || null });
       });
-
+      
       data.append('roles', JSON.stringify(roles));
 
       try {
@@ -190,32 +361,28 @@
           body: data
         });
         const json = await res.json();
-        
         if (json.success) {
           document.querySelector('[name="reactionroles.messageId"]').value = json.messageId;
-          showNotif("Messaggio Reaction Role inviato con successo!", false);
+          showNotification("Messaggio inviato!", false);
         } else {
-          showNotif(json.error || "Errore sconosciuto", true);
+          showNotification(json.error || "Errore", true);
         }
       } catch (err) {
-        showNotif("Errore di connessione!", true);
+        showNotification("Errore di rete!", true);
       }
     }
 
-    function showNotif(msg, error = false) {
-      // Rimuovi notifiche precedenti
-      document.querySelectorAll('.notification').forEach(n => n.remove());
-      
+    function showNotification(msg, error = false) {
       const n = document.createElement('div');
       n.className = `notification ${error ? 'error' : 'success'} show`;
       n.innerHTML = `${error ? 'Errore' : 'Fatto'} ${msg}`;
       document.body.appendChild(n);
-      
-      setTimeout(() => {
-        n.classList.remove('show');
-        setTimeout(() => n.remove(), 500);
-      }, 3000);
+      setTimeout(() => n.remove(), 3500);
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('general').style.display = 'block';
+    });
   </script>
 </body>
 </html>
