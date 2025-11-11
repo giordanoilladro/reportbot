@@ -423,37 +423,52 @@
     }
 
     async function sendReactionRoleMessage() {
-      const form = document.getElementById('configForm');
-      const data = new FormData(form);
-      const roles = [];
-      document.querySelectorAll('.role-row').forEach(row => {
-        const roleId = row.querySelector('select[name$=".roleId"]')?.value;
-        if (roleId) {
-          roles.push({
-            roleId,
-            label: row.querySelector('input[name$=".label"]')?.value || null,
-            emoji: row.querySelector('input[name$=".emoji"]')?.value || null,
-            style: row.querySelector('select[name$=".style"]')?.value || 'Secondary'
-          });
-        }
+  const form = document.getElementById('configForm');
+  const data = new FormData(form);
+  const roles = [];
+  document.querySelectorAll('.role-row').forEach(row => {
+    const roleId = row.querySelector('select[name$=".roleId"]')?.value;
+    if (roleId) {
+      roles.push({
+        roleId,
+        label: row.querySelector('input[name$=".label"]')?.value || null,
+        emoji: row.querySelector('input[name$=".emoji"]')?.value || null,
+        style: row.querySelector('select[name$=".style"]')?.value || 'Secondary'
       });
-      data.append('reactionroles.roles', JSON.stringify(roles));
-
-      try {
-        const res = await fetch(`/guild/<%= selectedGuild.id %>/reactionrole/send`, {
-          method: 'POST',
-          body: data
-        });
-        const json = await res.json();
-        if (json.success) {
-          showNotification('Messaggio Reaction Role inviato con successo!', false);
-        } else {
-          showNotification('Errore: ' + json.error, true);
-        }
-      } catch (err) {
-        showNotification('Errore di rete!', true);
-      }
     }
+  });
+  data.append('roles', JSON.stringify(roles));
+
+  // AGGIUNGI messageId se esiste già
+  const currentMessageId = document.querySelector('[name="reactionroles.messageId"]')?.value;
+  if (currentMessageId) data.append('messageId', currentMessageId);
+
+  try {
+    const res = await fetch(`/guild/<%= selectedGuild.id %>/reactionrole/send`, {
+      method: 'POST',
+      body: data
+    });
+    const json = await res.json();
+    if (json.success) {
+      // SALVA messageId NEL FORM per la prossima volta!
+      let input = document.querySelector('[name="reactionroles.messageId"]');
+      if (!input) {
+        input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'reactionroles.messageId';
+        form.appendChild(input);
+      }
+      input.value = json.messageId;
+
+      showNotification('Messaggio Reaction Role inviato e salvato!', false);
+      updatePreview(); // aggiorna anteprima con i pulsanti corretti
+    } else {
+      showNotification('Errore: ' + json.error, true);
+    }
+  } catch (err) {
+    showNotification('Errore di rete!', true);
+  }
+}
 
     function showNotification(msg, error = false) {
       const n = document.createElement('div');
