@@ -12,11 +12,9 @@ const app = express();
 
 // === CORS ===
 const cors = require('cors');
-
-// INSTALLA PRIMA: npm install cors
 app.use(cors({
-  origin: ['https://hamsterhouse.it', 'http://hamsterhouse.it'], // Permetti entrambi (HTTP/HTTPS)
-  credentials: true, // Necessario per le sessioni (cookie)
+  origin: ['https://hamsterhouse.it', 'http://hamsterhouse.it'],
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -89,7 +87,6 @@ app.get('/auth/callback', async (req, res) => {
   if (!code) return res.status(400).send('Errore: codice mancante.');
 
   try {
-    // === 1. SCAMBIO TOKEN ===
     const body = `client_id=${process.env.CLIENT_ID}&client_secret=${process.env.CLIENT_SECRET}&grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}`;
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
@@ -102,24 +99,18 @@ app.get('/auth/callback', async (req, res) => {
       throw new Error(tokens.error_description || 'Access token mancante');
     }
 
-    // === 2. OTTIENI UTENTE ===
     const userRes = await fetch('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
     if (!userRes.ok) throw new Error('Errore utente');
     const user = await userRes.json();
 
-    // === 3. OTTIENI TUTTI I SERVER DELL'UTENTE ===
     const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
     const userGuilds = guildsRes.ok ? await guildsRes.json() : [];
-    if (!Array.isArray(userGuilds)) {
-      console.warn('User guilds non è array:', userGuilds);
-      userGuilds = [];
-    }
+    if (!Array.isArray(userGuilds)) userGuilds = [];
 
-    // === 4. OTTIENI I SERVER DEL BOT (usando DISCORD_TOKEN) ===
     let botGuildIds = [];
     if (process.env.DISCORD_TOKEN) {
       try {
@@ -134,17 +125,13 @@ app.get('/auth/callback', async (req, res) => {
       } catch (e) {
         console.warn('Errore recupero server del bot:', e.message);
       }
-    } else {
-      console.warn('DISCORD_TOKEN mancante → non posso filtrare i server');
     }
 
-    // === 5. FILTRA: admin/owner + bot presente ===
     const adminGuilds = userGuilds.filter(g =>
       botGuildIds.includes(g.id) &&
       ((g.permissions & 0x8) === 0x8 || g.owner)
     );
 
-    // === 6. SALVA SESSIONE ===
     req.session.user = {
       id: user.id,
       username: user.username,
@@ -181,7 +168,9 @@ app.get('/dashboard', requireAuth, (req, res) => {
     user: req.session.user,
     guilds: req.session.guilds || [],
     selectedGuild: null,
-    settings: {}
+    settings: {},
+    channels: [],
+    roles: []
   });
 });
 
@@ -198,11 +187,32 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
     const dbSettings = dbDoc ? dbDoc.toObject() : {};
     const settings = { ...dbSettings, ...jsonSettings };
 
+    // === FIX MAGICO: PASSA CANALI E RUOLI AL FRONTEND ===
+    let channels = [];
+    let roles = [];
+
+    if (global.client && global.client.guilds) {
+      const discordGuild = global.client.guilds.cache.get(guildId);
+      if (discordGuild) {
+        channels = discordGuild.channels.cache
+          .filter(c => c.type === 0)
+          .sort((a, b) => a.position - b.position)
+          .map(c => ({ id: c.id, name: c.name }));
+
+        roles = discordGuild.roles.cache
+          .sort((a, b) => b.position - a.position)
+          .map(r => ({ id: r.id, name: r.name }));
+      }
+    }
+    // ==============================================
+
     res.render('dashboard', {
       user: req.session.user,
       guilds: req.session.guilds,
       selectedGuild: guild,
-      settings
+      settings,
+      channels,
+      roles
     });
   } catch (err) {
     console.error('DB error:', err);
@@ -243,7 +253,7 @@ app.use((req, res) => {
 });
 
 // ===================================
-// AVVIO SERVER (OBBLIGATORIO PER FLY.IO)
+// AVVIO SERVER
 // ===================================
 app.listen(PORT, HOST, () => {
   console.log('HAMSTERHOUSE DASHBOARD ONLINE');
