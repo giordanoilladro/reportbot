@@ -107,14 +107,19 @@
     .form-group { margin-bottom:20px; }
     .form-group label { display:block; margin-bottom:8px; font-weight:500; }
     .form-select, .form-input, .form-textarea {
-      width:100%; padding:12px 16px; background:rgba(45,45, aiuto68,0.6);
+      width:100%; padding:12px 16px; background:rgba(45,45,68,0.6);
       border:1px solid var(--border); border-radius:10px; color:#fff;
     }
+    .form-select:focus, .form-input:focus, .form-textarea:focus {
+      outline:none; border-color:var(--primary);
+      box-shadow:0 0 0 3px rgba(88,101,242,0.2);
+    }
+    .form-textarea { min-height:100px; resize:vertical; }
     .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
     .btn {
       padding:12px 24px; border:none; border-radius:12px; font-weight:600;
       cursor:pointer; display:inline-flex; align-items:center; gap:8px;
-      transition: var(--transition);
+      transition:var(--transition);
     }
     .btn-primary { background:var(--primary); color:white; }
     .btn-primary:hover { background:var(--primary-light); transform:translateY(-2px); }
@@ -146,7 +151,7 @@
     </div>
     <div class="server-list">
       <% guilds.forEach(g => { %>
-        <a href="/guild/<%= g.id %>" class="server-item <%= selectedGuild?.id === g.id ? 'active' : '' %>">
+        <a href="/guild/<%= g.id %>" class="server-item <%= selectedGuild && selectedGuild.id === g.id ? 'active' : '' %>">
           <% if (g.icon) { %>
             <img src="https://cdn.discordapp.com/icons/<%= g.id %>/<%= g.icon %>.webp?size=32" class="server-icon">
           <% } else { %>
@@ -158,10 +163,10 @@
     </div>
     <div class="external-links">
       <h3>Pagine</h3>
-      <a href="/home" class="external-link">Home <span>Home</span></a>
-      <a href="/termini" class="external-link">Termini <span>Termini</span></a>
-      <a href="/privacy" class="external-link">Privacy <span>Privacy</span></a>
-      <a href="/collabora" class="external-link">Collabora <span>Collabora</span></a>
+      <a href="/home" class="external-link"><i class="fas fa-home"></i> <span>Home</span></a>
+      <a href="/termini" class="external-link"><i class="fas fa-book"></i> <span>Termini</span></a>
+      <a href="/privacy" class="external-link"><i class="fas fa-shield-alt"></i> <span>Privacy</span></a>
+      <a href="/collabora" class="external-link"><i class="fas fa-handshake"></i> <span>Collabora</span></a>
     </div>
   </div>
 
@@ -193,10 +198,10 @@
           <input type="hidden" name="reactionroles.messageId" value="<%= settings.reactionroles?.messageId || '' %>">
 
           <div class="tabs">
-            <button type="button" class="tab-btn active" onclick="openTab('general')">Generale</button>
-            <button type="button" class="tab-btn" onclick="openTab('verify')">Verifica</button>
-            <button type="button" class="tab-btn" onclick="openTab('report')">Report</button>
-            <button type="button" class="tab-btn" onclick="openTab('reactionroles')">Reaction Roles</button>
+            <button type="button" class="tab-btn active" data-tab="general">Generale</button>
+            <button type="button" class="tab-btn" data-tab="verify">Verifica</button>
+            <button type="button" class="tab-btn" data-tab="report">Report</button>
+            <button type="button" class="tab-btn" data-tab="reactionroles">Reaction Roles</button>
           </div>
 
           <!-- TAB GENERALE -->
@@ -248,11 +253,17 @@
 
             <div class="grid-2">
               <div class="form-group">
-                <label>Canale</label>
+                <label>Canale del messaggio</label>
                 <select name="reactionroles.channelId" class="form-select">
                   <option value="">Seleziona canale...</option>
-                  <% selectedGuild.channels.cache.filter(c => c.type === 0).sort((a,b) => a.position - b.position).forEach(ch => { %>
-                    <option value="<%= ch.id %>" <%= settings.reactionroles?.channelId === ch.id ? 'selected' : '' %>>#<%= ch.name %></option>
+                  <% 
+                  const channels = selectedGuild.channels.cache
+                    .filter(c => c.type === 0)
+                    .sort((a, b) => a.position - b.position);
+                  channels.forEach(ch => { %>
+                    <option value="<%= ch.id %>" <%= settings.reactionroles?.channelId === ch.id ? 'selected' : '' %>>
+                      #<%= ch.name %>
+                    </option>
                   <% }) %>
                 </select>
               </div>
@@ -276,23 +287,29 @@
               <% (settings.reactionroles?.roles || []).forEach((r, i) => { %>
                 <div class="role-row">
                   <div class="grid-2">
-                    <select class="form-select" name="reactionroles.roles[<%= i %>].roleId">
-                      <option value="">Seleziona ruolo...</option>
-                      <% selectedGuild.roles.cache.sort((a,b) => b.position - a.position).forEach(role => { %>
-                        <option value="<%= role.id %>" <%= r.roleId === role.id ? 'selected' : '' %>><%= role.name %></option>
-                      <% }) %>
-                    </select>
-                    <input type="text" name="reactionroles.roles[<%= i %>].label" class="form-input" value="<%= r.label || '' %>" placeholder="Testo pulsante">
+                    <div class="form-group">
+                      <select name="reactionroles.roles[<%= i %>].roleId" class="form-select">
+                        <option value="">Seleziona ruolo...</option>
+                        <% 
+                        const roles = selectedGuild.roles.cache.sort((a, b) => b.position - a.position);
+                        roles.forEach(role => { %>
+                          <option value="<%= role.id %>" <%= r.roleId === role.id ? 'selected' : '' %>><%= role.name %></option>
+                        <% }) %>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <input type="text" name="reactionroles.roles[<%= i %>].label" class="form-input" value="<%= r.label || '' %>" placeholder="Testo pulsante">
+                    </div>
                   </div>
-                  <button type="button" class="btn" style="background:#ef4444; margin-top:8px;" onclick="this.closest('.role-row').remove()">
-                    Rimuovi
+                  <button type="button" onclick="this.closest('.role-row').remove()" class="btn" style="background:#ef4444; margin-top:8px; width:100%;">
+                    Rimuovi Ruolo
                   </button>
                 </div>
               <% }) %>
             </div>
 
             <button type="button" onclick="addRoleRow()" class="btn btn-primary" style="margin:16px 0;">
-              + Aggiungi Ruolo
+              Aggiungi Ruolo
             </button>
 
             <button type="button" onclick="sendReactionRoleMessage()" class="btn btn-primary">
@@ -309,50 +326,62 @@
   </div>
 
   <script>
+    // Protezione totale
     const guildId = "<%= selectedGuild ? selectedGuild.id : '' %>";
+    const hasGuild = !!guildId;
 
-    function openTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-      document.querySelector(`[onclick="openTab('${tab}')"]`).classList.add('active');
-      document.getElementById(tab).style.display = 'block';
-    }
+    // Tab system sicuro
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).style.display = 'block';
+      });
+    });
 
     function addRoleRow() {
-      if (!guildId) return alert("Seleziona un server!");
+      if (!hasGuild) return showNotification("Seleziona un server!", true);
+      
       const container = document.getElementById('roles-container');
       const index = container.children.length;
       const div = document.createElement('div');
       div.className = 'role-row';
       div.innerHTML = `
         <div class="grid-2">
-          <select class="form-select" name="reactionroles.roles[${index}].roleId">
-            <option value="">Seleziona ruolo...</option>
-            ${Array.from(selectedGuild.roles.cache.sort((a,b) => b.position - a.position).values())
-              .map(r => `<option value="${r.id}">${r.name}</option>`).join('')}
-          </select>
-          <input type="text" name="reactionroles.roles[${index}].label" class="form-input" placeholder="Testo pulsante">
+          <div class="form-group">
+            <select name="reactionroles.roles[${index}].roleId" class="form-select">
+              <option value="">Seleziona ruolo...</option>
+              ${Array.from(selectedGuild.roles.cache.sort((a,b) => b.position - a.position).values())
+                .map(r => `<option value="${r.id}">${r.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <input type="text" name="reactionroles.roles[${index}].label" class="form-input" placeholder="Testo pulsante">
+          </div>
         </div>
-        <button type="button" class="btn" style="background:#ef4444; margin-top:8px;" onclick="this.closest('.role-row').remove()">
-          Rimuovi
+        <button type="button" onclick="this.closest('.role-row').remove()" class="btn" style="background:#ef4444; margin-top:8px; width:100%;">
+          Rimuovi Ruolo
         </button>
       `;
       container.appendChild(div);
     }
 
     async function sendReactionRoleMessage() {
-      if (!guildId) return showNotification("Seleziona un server!", true);
-      
+      if (!hasGuild) return showNotification("Seleziona un server!", true);
+
       const form = document.getElementById('configForm');
       const data = new FormData(form);
       const roles = [];
-      
+
       document.querySelectorAll('.role-row').forEach(row => {
         const roleId = row.querySelector('select')?.value;
         const label = row.querySelector('input')?.value;
-        if (roleId) roles.push({ roleId, label: label || null });
+        if (roleId) {
+          roles.push({ roleId, label: label || null });
+        }
       });
-      
+
       data.append('roles', JSON.stringify(roles));
 
       try {
@@ -361,27 +390,38 @@
           body: data
         });
         const json = await res.json();
+        
         if (json.success) {
           document.querySelector('[name="reactionroles.messageId"]').value = json.messageId;
-          showNotification("Messaggio inviato!", false);
+          showNotification("Messaggio Reaction Role inviato!", false);
         } else {
-          showNotification(json.error || "Errore", true);
+          showNotification(json.error || "Errore del server", true);
         }
       } catch (err) {
-        showNotification("Errore di rete!", true);
+        showNotification("Errore di connessione!", true);
       }
     }
 
     function showNotification(msg, error = false) {
+      const existing = document.querySelector('.notification');
+      if (existing) existing.remove();
+
       const n = document.createElement('div');
       n.className = `notification ${error ? 'error' : 'success'} show`;
-      n.innerHTML = `${error ? 'Errore' : 'Fatto'} ${msg}`;
+      n.innerHTML = `<i class="fas fa-${error ? 'exclamation-triangle' : 'check-circle'}"></i> ${msg}`;
       document.body.appendChild(n);
-      setTimeout(() => n.remove(), 3500);
+      
+      setTimeout(() => {
+        n.classList.remove('show');
+        setTimeout(() => n.remove(), 500);
+      }, 3000);
     }
 
+    // Inizializza
     document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('general').style.display = 'block';
+      if (hasGuild) {
+        document.getElementById('general').style.display = 'block';
+      }
     });
   </script>
 </body>
