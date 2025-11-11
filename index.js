@@ -168,5 +168,3 @@ client.on('interactionCreate', async (interaction) => {
 
 // Login
 client.login(process.env.TOKEN);
-
-global.client = client;
