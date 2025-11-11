@@ -4,7 +4,6 @@ const session = require('express-session');
 const fetch = require('node-fetch');
 const path = require('path');
 const mongoose = require('mongoose');
-
 const GuildSettings = require('../models/GuildSettings');
 const { getGuildConfig, setGuildConfig } = require('../utils/configManager');
 
@@ -56,32 +55,27 @@ app.use((req, res, next) => {
 });
 
 // ===================================
-// ROTTE STATICHE PULITE
+// ROTTE STATICHE
 // ===================================
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/pages/home.html'));
-});
-
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/pages/home.html')));
 const staticPages = [
   { route: '/collabora', file: 'collabora.html' },
-  { route: '/termini',    file: 'termini.html' },
-  { route: '/privacy',    file: 'privacy.html' },
-  { route: '/home',       file: 'home.html' }
+  { route: '/termini', file: 'termini.html' },
+  { route: '/privacy', file: 'privacy.html' },
+  { route: '/home', file: 'home.html' }
 ];
-
 staticPages.forEach(page => {
   app.get(page.route, (req, res) => {
     res.sendFile(path.join(__dirname, 'public/pages', page.file));
   });
 });
 
-// === OAUTH2 LOGIN ===
+// === OAUTH2 ===
 app.get('/login', (req, res) => {
   const url = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
   res.redirect(url);
 });
 
-// === CALLBACK CON FILTRO BOT ===
 app.get('/auth/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Errore: codice mancante.');
@@ -93,22 +87,18 @@ app.get('/auth/callback', async (req, res) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body
     });
-
     const tokens = await tokenResponse.json();
-    if (tokens.error || !tokens.access_token) {
-      throw new Error(tokens.error_description || 'Access token mancante');
-    }
+    if (tokens.error || !tokens.access_token) throw new Error(tokens.error_description || 'Token mancante');
 
     const userRes = await fetch('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
-    if (!userRes.ok) throw new Error('Errore utente');
     const user = await userRes.json();
 
     const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
       headers: { Authorization: `Bearer ${tokens.access_token}` }
     });
-    const userGuilds = guildsRes.ok ? await guildsRes.json() : [];
+    let userGuilds = await guildsRes.json();
     if (!Array.isArray(userGuilds)) userGuilds = [];
 
     let botGuildIds = [];
@@ -119,29 +109,19 @@ app.get('/auth/callback', async (req, res) => {
         });
         if (botRes.ok) {
           const botGuilds = await botRes.json();
-          botGuildIds = Array.isArray(botGuilds) ? botGuilds.map(g => g.id) : [];
-          console.log(`Bot presente in ${botGuildIds.length} server`);
+          botGuildIds = botGuilds.map(g => g.id);
         }
-      } catch (e) {
-        console.warn('Errore recupero server del bot:', e.message);
-      }
+      } catch (e) { console.warn('Errore bot guilds:', e.message); }
     }
 
     const adminGuilds = userGuilds.filter(g =>
-      botGuildIds.includes(g.id) &&
-      ((g.permissions & 0x8) === 0x8 || g.owner)
+      botGuildIds.includes(g.id) && ((g.permissions & 0x8) === 0x8 || g.owner)
     );
 
-    req.session.user = {
-      id: user.id,
-      username: user.username,
-      discriminator: user.discriminator || '0',
-      avatar: user.avatar
-    };
+    req.session.user = { id: user.id, username: user.username, discriminator: user.discriminator || '0', avatar: user.avatar };
     req.session.guilds = adminGuilds;
 
-    console.log(`Login OK: ${user.username}#${user.discriminator} | Guilds con bot: ${adminGuilds.length}`);
-
+    console.log(`Login OK: ${user.username}#${user.discriminator || '0'} | Guilds: ${adminGuilds.length}`);
     res.redirect('/dashboard');
   } catch (err) {
     console.error('OAuth2 ERRORE:', err.message);
@@ -149,16 +129,9 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-// === LOGOUT ===
-app.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'));
-});
+app.get('/logout', (req, res) => { req.session.destroy(() => res.redirect('/')); });
 
-// === AUTENTICAZIONE ===
-const requireAuth = (req, res, next) => {
-  if (!req.session.user) return res.redirect('/login');
-  next();
-};
+const requireAuth = (req, res, next) => { if (!req.session.user) return res.redirect('/login'); next(); };
 
 // ===================================
 // DASHBOARD
@@ -176,9 +149,7 @@ app.get('/dashboard', requireAuth, (req, res) => {
 
 app.get('/guild/:id', requireAuth, async (req, res) => {
   const guildId = req.params.id;
-  if (!req.session.guilds?.some(g => g.id === guildId)) {
-    return res.status(403).send('Accesso negato.');
-  }
+  if (!req.session.guilds?.some(g => g.id === guildId)) return res.status(403).send('Accesso negato.');
 
   try {
     const guild = req.session.guilds.find(g => g.id === guildId);
@@ -187,24 +158,20 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
     const dbSettings = dbDoc ? dbDoc.toObject() : {};
     const settings = { ...dbSettings, ...jsonSettings };
 
-    // === FIX MAGICO: PASSA CANALI E RUOLI AL FRONTEND ===
     let channels = [];
     let roles = [];
 
-    if (global.client && global.client.guilds) {
+    if (global.client?.guilds?.cache?.has(guildId)) {
       const discordGuild = global.client.guilds.cache.get(guildId);
-      if (discordGuild) {
-        channels = discordGuild.channels.cache
-          .filter(c => c.type === 0)
-          .sort((a, b) => a.position - b.position)
-          .map(c => ({ id: c.id, name: c.name }));
+      channels = discordGuild.channels.cache
+        .filter(c => c.type === 0)
+        .sort((a, b) => a.position - b.position)
+        .map(c => ({ id: c.id, name: c.name }));
 
-        roles = discordGuild.roles.cache
-          .sort((a, b) => b.position - a.position)
-          .map(r => ({ id: r.id, name: r.name }));
-      }
+      roles = discordGuild.roles.cache
+        .sort((a, b) => b.position - a.position)
+        .map(r => ({ id: r.id, name: r.name }));
     }
-    // ==============================================
 
     res.render('dashboard', {
       user: req.session.user,
@@ -222,19 +189,12 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
 
 app.post('/guild/:id/save', requireAuth, async (req, res) => {
   const guildId = req.params.id;
-  if (!req.session.guilds?.some(g => g.id === guildId)) {
-    return res.json({ success: false, error: 'No permessi' });
-  }
+  if (!req.session.guilds?.some(g => g.id === guildId)) return res.json({ success: false, error: 'No permessi' });
 
   const data = req.body;
-
   try {
     setGuildConfig(guildId, data);
-    await GuildSettings.findOneAndUpdate(
-      { guildId },
-      { $set: data },
-      { upsert: true }
-    );
+    await GuildSettings.findOneAndUpdate({ guildId }, { $set: data }, { upsert: true });
     res.json({ success: true });
   } catch (err) {
     console.error('Save error:', err);
@@ -243,21 +203,14 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
 });
 
 // ===================================
-// 404
+// 404 + AVVIO
 // ===================================
 app.use((req, res) => {
-  const filePath = path.join(__dirname, 'public/pages/404.html');
-  res.status(404).sendFile(filePath, err => {
-    if (err) res.status(404).send('404 - Pagina non trovata');
-  });
+  res.status(404).sendFile(path.join(__dirname, 'public/pages/404.html'));
 });
 
-// ===================================
-// AVVIO SERVER
-// ===================================
 app.listen(PORT, HOST, () => {
-  console.log('HAMSTERHOUSE DASHBOARD ONLINE');
+  console.log('DASHBOARD ONLINE');
   console.log(`APRI → ${BASE_URL}`);
   console.log(`Login → ${BASE_URL}/login`);
-  console.log(`Link diretto: https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`);
 });
