@@ -9,6 +9,8 @@ const { getGuildConfig, setGuildConfig } = require('../utils/configManager');
 
 const app = express();
 
+global.client = client;
+
 // === CORS ===
 const cors = require('cors');
 app.use(cors({
