@@ -114,7 +114,9 @@ if (process.env.DASHBOARD_ENABLED === 'true') {
 
 // === READY + URL CORRETTO PER SEMPRE ===
 client.once('ready', () => {
-  console.log(`Bot online: ${client.user.tag}`);
+  console.log(`Il mitico Bot online: ${client.user.tag}`);
+
+   global.client = client;
 
   // URL INTELLIGENTE - FUNZIONA OVUNQUE (Fly.io, Render, Railway, Hostinger)
   const dashboardUrl = 
