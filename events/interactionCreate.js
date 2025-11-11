@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const GuildSettings = require('../models/GuildReaction'); // <-- usa il modello che preferisci
+const GuildSettings = require('../models/GuildSettings'); // <-- usa il modello che preferisci
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = {

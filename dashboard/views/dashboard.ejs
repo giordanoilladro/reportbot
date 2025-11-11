@@ -4,11 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ReportBot Dashboard</title>
-
-  <!-- Google Fonts + Font Awesome -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
   <style>
     :root {
       --primary: #5865F2;
@@ -19,142 +16,133 @@
       --darker: #0f0f1a;
       --gray: #2d2d44;
       --light: #e0e7ff;
-      --border: rgba(255, 255, 255, 0.1);
+      --border: rgba(255,255,255,0.1);
       --radius: 16px;
-      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
-      color: #e0e7ff;
-      min-height: 100vh;
-      overflow-x: hidden;
+      font-family:'Inter',sans-serif;
+      background:linear-gradient(135deg,#0f0f1a 0%,#1a1a2e 100%);
+      color:#e0e7ff;
+      min-height:100vh;
+      overflow-x:hidden;
     }
-
-    /* === SIDEBAR === */
     .sidebar {
-      position: fixed; left: 0; top: 0; width: 280px; height: 100vh;
-      background: rgba(15, 15, 26, 0.8); backdrop-filter: blur(12px);
-      border-right: 1px solid var(--border); padding: 24px 16px;
-      display: flex; flex-direction: column; z-index: 100;
+      position:fixed; left:0; top:0; width:280px; height:100vh;
+      background:rgba(15,15,26,0.8); backdrop-filter:blur(12px);
+      border-right:1px solid var(--border); padding:24px 16px;
+      display:flex; flex-direction:column; z-index:100;
     }
     .user-info {
-      display: flex; align-items: center; gap: 12px; padding: 12px;
-      border-radius: var(--radius); background: rgba(255,255,255,0.05);
-      margin-bottom: 24px;
+      display:flex; align-items:center; gap:12px; padding:12px;
+      border-radius:var(--radius); background:rgba(255,255,255,0.05);
+      margin-bottom:24px;
     }
-    .avatar { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--primary); }
-    .username { font-weight: 600; color: #fff; }
-    .logout { color: #ef4444; text-decoration: none; font-size: 0.8rem; }
-    .server-list { flex: 1; overflow-y: auto; margin: 16px 0; }
+    .avatar { width:48px; height:48px; border-radius:50%; border:2px solid var(--primary); }
+    .username { font-weight:600; color:#fff; }
+    .logout { color:#ef4444; text-decoration:none; font-size:0.8rem; }
+    .server-list { flex:1; overflow-y:auto; margin:16px 0; }
     .server-item {
-      display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-      border-radius: 12px; color: #b0b7d0; text-decoration: none; margin: 6px 0;
-      transition: var(--transition); position: relative;
+      display:flex; align-items:center; gap:12px; padding:10px 12px;
+      border-radius:12px; color:#b0b7d0; text-decoration:none; margin:6px 0;
+      transition:var(--transition); position:relative;
     }
     .server-item:hover, .server-item.active {
-      background: rgba(88,101,242,0.15); color: #fff; transform: translateX(4px);
+      background:rgba(88,101,242,0.15); color:#fff; transform:translateX(4px);
     }
     .server-item.active::before {
-      content: ''; position: absolute; left: 0; top: 0; width: 4px; height: 100%;
-      background: var(--primary);
+      content:''; position:absolute; left:0; top:0; width:4px; height:100%;
+      background:var(--primary);
     }
     .server-icon {
-      width: 36px; height: 36px; border-radius: 50%; background: var(--gray);
-      display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
+      width:36px; height:36px; border-radius:50%; background:var(--gray);
+      display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;
     }
     .external-links {
-      border-top: 1px solid var(--border); padding-top: 16px;
+      border-top:1px solid var(--border); padding-top:16px;
     }
     .external-links h3 {
-      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
-      color: #9ca3af; margin-bottom: 12px; font-weight: 600;
+      font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em;
+      color:#9ca3af; margin-bottom:12px; font-weight:600;
     }
     .external-link {
-      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-      border-radius: 10px; color: #b0b7d0; text-decoration: none;
-      font-size: 0.9rem; transition: var(--transition);
+      display:flex; align-items:center; gap:10px; padding:10px 12px;
+      border-radius:10px; color:#b0b7d0; text-decoration:none;
+      font-size:0.9rem; transition:var(--transition);
     }
     .external-link:hover {
-      background: rgba(255,255,255,0.08); color: #fff; transform: translateX(6px);
+      background:rgba(255,255,255,0.08); color:#fff; transform:translateX(6px);
     }
-
-    /* === MAIN CONTENT === */
-    .main-content { margin-left: 280px; padding: 32px; min-height: 100vh; }
+    .main-content { margin-left:280px; padding:32px; min-height:100vh; }
     .card {
-      background: rgba(15,15,26,0.6); backdrop-filter: blur(16px);
-      border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 28px; max-width: 900px; margin: 0 auto;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      background:rgba(15,15,26,0.6); backdrop-filter:blur(16px);
+      border:1px solid var(--border); border-radius:var(--radius);
+      padding:28px; max-width:900px; margin:0 auto;
+      box-shadow:0 20px 40px rgba(0,0,0,0.3);
     }
     .guild-header {
-      display: flex; align-items: center; gap: 16px; margin-bottom: 28px;
-      padding-bottom: 16px; border-bottom: 1px solid var(--border);
+      display:flex; align-items:center; gap:16px; margin-bottom:28px;
+      padding-bottom:16px; border-bottom:1px solid var(--border);
     }
     .guild-icon-large {
-      width: 72px; height: 72px; border-radius: 50%;
-      border: 3px solid var(--primary); box-shadow: 0 0 20px rgba(88,101,242,0.5);
+      width:72px; height:72px; border-radius:50%;
+      border:3px solid var(--primary); box-shadow:0 0 20px rgba(88,101,242,0.5);
     }
     .tabs {
-      display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--border);
+      display:flex; gap:8px; margin-bottom:24px; border-bottom:1px solid var(--border);
     }
     .tab-btn {
-      padding: 12px 20px; background: transparent; border: none;
-      color: #9ca3af; font-weight: 500; border-radius: 12px 12px 0 0;
-      cursor: pointer; position: relative; transition: var(--transition);
+      padding:12px 20px; background:transparent; border:none;
+      color:#9ca3af; font-weight:500; border-radius:12px 12px 0 0;
+      cursor:pointer; position:relative; transition:var(--transition);
     }
     .tab-btn::after {
-      content: ''; position: absolute; bottom: -1px; left: 50%; width: 0; height: 3px;
-      background: var(--primary); transition: var(--transition); transform: translateX(-50%);
+      content:''; position:absolute; bottom:-1px; left:50%; width:0; height:3px;
+      background:var(--primary); transition:var(--transition); transform:translateX(-50%);
     }
-    .tab-btn:hover, .tab-btn.active { color: #fff; background: rgba(88,101,242,0.15); }
-    .tab-btn.active::after { width: 60%; }
-    .tab-content { display: none; }
-
-    /* Form */
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; margin-bottom: 8px; font-weight: 500; }
+    .tab-btn:hover, .tab-btn.active { color:#fff; background:rgba(88,101,242,0.15); }
+    .tab-btn.active::after { width:60%; }
+    .tab-content { display:none; }
+    .form-group { margin-bottom:20px; }
+    .form-group label { display:block; margin-bottom:8px; font-weight:500; }
     .form-select, .form-input, .form-textarea {
-      width: 100%; padding: 12px 16px; background: rgba(45,45,68,0.6);
-      border: 1px solid var(--border); border-radius: 10px; color: #fff;
+      width:100%; padding:12px 16px; background:rgba(45,45,68,0.6);
+      border:1px solid var(--border); border-radius:10px; color:#fff;
     }
     .form-select:focus, .form-input:focus, .form-textarea:focus {
-      outline: none; border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(88,101,242,0.2);
+      outline:none; border-color:var(--primary);
+      box-shadow:0 0 0 3px rgba(88,101,242,0.2);
     }
-    .form-textarea { min-height: 100px; resize: vertical; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-textarea { min-height:100px; resize:vertical; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
     .btn {
-      padding: 12px 24px; border: none; border-radius: 12px; font-weight: 600;
-      cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
-      transition: var(--transition);
+      padding:12px 24px; border:none; border-radius:12px; font-weight:600;
+      cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+      transition:var(--transition);
     }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: var(--primary-light); transform: translateY(-2px); }
-    .btn-secondary { background: rgba(255,255,255,0.1); color: #e0e7ff; border: 1px solid var(--border); }
+    .btn-primary { background:var(--primary); color:white; }
+    .btn-primary:hover { background:var(--primary-light); transform:translateY(-2px); }
+    .btn-secondary { background:rgba(255,255,255,0.1); color:#e0e7ff; border:1px solid var(--border); }
     .role-row {
-      background: rgba(45,45,68,0.5); padding: 16px; border-radius: 12px;
-      border: 1px solid rgba(88,101,242,0.3); margin: 12px 0;
+      background:rgba(45,45,68,0.5); padding:16px; border-radius:12px;
+      border:1px solid rgba(88,101,242,0.3); margin:12px 0;
     }
-    .mt-4 { margin-top: 24px; }
-
-    /* Notification */
+    .mt-4 { margin-top:24px; }
     .notification {
-      position: fixed; bottom: 24px; right: 24px; padding: 16px 28px;
-      border-radius: 16px; color: white; box-shadow: 0 12px 32px rgba(0,0,0,0.3);
-      transform: translateY(100px); opacity: 0; transition: all 0.4s ease;
-      display: flex; align-items: center; gap: 10px; min-width: 300px;
+      position:fixed; bottom:24px; right:24px; padding:16px 28px;
+      border-radius:16px; color:white; box-shadow:0 12px 32px rgba(0,0,0,0.3);
+      transform:translateY(100px); opacity:0; transition:all 0.4s ease;
+      display:flex; align-items:center; gap:10px; min-width:300px;
     }
-    .notification.show { transform: translateY(0); opacity: 1; }
-    .notification.success { background: linear-gradient(135deg, #10b981, #059669); }
-    .notification.error { background: linear-gradient(135deg, #ef4444, #dc2626); }
-
-    @media (max-width: 768px) {
-      .sidebar { width: 70px; padding: 16px 8px; }
-      .sidebar .username, .sidebar .logout, .server-name, .external-links h3, .external-link span { display: none; }
-      .main-content { margin-left: 70px; padding: 16px; }
-      .grid-2 { grid-template-columns: 1fr; }
+    .notification.show { transform:translateY(0); opacity:1; }
+    .notification.success { background:linear-gradient(135deg,#10b981,#059669); }
+    .notification.error { background:linear-gradient(135deg,#ef4444,#dc2626); }
+    @media (max-width:768px) {
+      .sidebar { width:70px; padding:16px 8px; }
+      .sidebar .username, .sidebar .logout, .server-name, .external-links h3, .external-link span { display:none; }
+      .main-content { margin-left:70px; padding:16px; }
+      .grid-2 { grid-template-columns:1fr; }
     }
   </style>
 </head>
@@ -195,7 +183,7 @@
   <!-- MAIN CONTENT -->
   <div class="main-content">
     <% if (!selectedGuild) { %>
-      <div class="header">
+      <div class="card">
         <h1>ReportBot Dashboard</h1>
         <p>Seleziona un server dalla sidebar per iniziare la configurazione.</p>
       </div>
@@ -302,4 +290,187 @@
 
             <div class="form-group">
               <label>Thumbnail (URL opzionale)</label>
-              <input type="url" name="reactionroles.thumbnail" class="form-input" value="<%=
+              <input type="url" name="reactionroles.thumbnail" class="form-input" value="<%= settings.reactionroles?.thumbnail || '' %>" placeholder="https://i.imgur.com/abc123.png">
+            </div>
+
+            <div id="roles-container">
+              <% (settings.reactionroles?.roles || []).forEach((r, i) => { %>
+                <div class="role-row">
+                  <div class="grid-2">
+                    <select class="form-select" name="reactionroles.roles[<%= i %>].roleId">
+                      <option value="">Seleziona ruolo...</option>
+                      <% guild.roles.cache.sort((a,b) => b.position - a.position).forEach(role => { %>
+                        <option value="<%= role.id %>" <%= r.roleId === role.id ? 'selected' : '' %>><%= role.name %></option>
+                      <% }) %>
+                    </select>
+                    <input type="text" name="reactionroles.roles[<%= i %>].label" class="form-input" value="<%= r.label || '' %>" placeholder="Testo pulsante">
+                  </div>
+                  <div class="grid-2" style="margin-top:8px;">
+                    <input type="text" name="reactionroles.roles[<%= i %>].emoji" class="form-input" value="<%= r.emoji || '' %>" placeholder="Emoji" style="width:38%">
+                    <select class="form-select" name="reactionroles.roles[<%= i %>].style">
+                      <option value="Primary" <%= r.style === 'Primary' ? 'selected' : '' %>>Blu</option>
+                      <option value="Secondary" <%= r.style === 'Secondary' ? 'selected' : '' %>>Grigio</option>
+                      <option value="Success" <%= r.style === 'Success' ? 'selected' : '' %>>Verde</option>
+                      <option value="Danger" <%= r.style === 'Danger' ? 'selected' : '' %>>Rosso</option>
+                    </select>
+                    <button type="button" class="btn" style="background:#ef4444;width:40px;padding:8px;" onclick="this.closest('.role-row').remove();updatePreview()">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+
+            <button type="button" onclick="addRoleRow()" class="btn btn-secondary" style="margin:12px 0;">
+              Aggiungi Ruolo (max 15)
+            </button>
+
+            <div class="mt-4">
+              <button type="button" onclick="sendReactionRoleMessage()" class="btn btn-primary">
+                Invia / Aggiorna Messaggio
+              </button>
+            </div>
+
+            <div class="card" style="margin-top:32px;">
+              <h3 style="color:#5865F2;margin-bottom:16px;">Anteprima Live</h3>
+              <div id="live-preview" style="padding:20px;background:#36393f;border-radius:12px;min-height:200px;border:1px solid #5865F2;">
+                <div style="background:#5865F2;padding:12px 16px;border-radius:8px 8px 0 0;color:white;font-weight:700;">
+                  Scegli i tuoi ruoli!
+                </div>
+                <div style="padding:20px;background:#36393f;color:#dcddde;border-radius:0 0 8px 8px;">
+                  <p style="margin:0 0 20px;max-width:80%;">Clicca sui pulsanti qui sotto per ottenere i ruoli che preferisci!</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <button type="submit" class="btn btn-primary">Salva Configurazione</button>
+            <button type="button" class="btn btn-secondary">Annulla</button>
+          </div>
+        </form>
+      </div>
+    <% } %>
+  </div>
+
+  <script>
+    function openTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      document.querySelector(`[onclick="openTab('${tab}')"]`).classList.add('active');
+      document.getElementById(tab).style.display = 'block';
+      if (tab === 'reactionroles') updatePreview();
+    }
+
+    let roleCounter = <%= (settings.reactionroles?.roles || []).length %>;
+    function addRoleRow() {
+      if (roleCounter >= 15) return showNotification('Massimo 15 ruoli!', true);
+      const container = document.getElementById('roles-container');
+      const index = container.children.length;
+      const div = document.createElement('div');
+      div.className = 'role-row';
+      div.innerHTML = `
+        <div class="grid-2">
+          <select class="form-select" name="reactionroles.roles[${index}].roleId">
+            <option value="">Seleziona ruolo...</option>
+            <% guild.roles.cache.sort((a,b) => b.position - a.position).forEach(role => { %>
+              <option value="<%= role.id %>"><%= role.name %></option>
+            <% }) %>
+          </select>
+          <input type="text" name="reactionroles.roles[${index}].label" class="form-input" placeholder="Testo pulsante">
+        </div>
+        <div class="grid-2" style="margin-top:8px;">
+          <input type="text" name="reactionroles.roles[${index}].emoji" class="form-input" placeholder="Emoji" style="width:38%">
+          <select class="form-select" name="reactionroles.roles[${index}].style">
+            <option value="Primary">Blu</option>
+            <option value="Secondary" selected>Grigio</option>
+            <option value="Success">Verde</option>
+            <option value="Danger">Rosso</option>
+          </select>
+          <button type="button" class="btn" style="background:#ef4444;width:40px;padding:8px;" onclick="this.closest('.role-row').remove();updatePreview()">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      `;
+      container.appendChild(div);
+      roleCounter++;
+      updatePreview();
+    }
+
+    function updatePreview() {
+      const title = document.querySelector('[name="reactionroles.title"]')?.value || 'Scegli i tuoi ruoli!';
+      const desc = document.querySelector('[name="reactionroles.description"]')?.value || '';
+      const color = document.querySelector('[name="reactionroles.color"]')?.value || '#5865F2';
+      let buttons = '';
+      document.querySelectorAll('.role-row').forEach(row => {
+        const roleSelect = row.querySelector('select[name$=".roleId"]');
+        const roleName = roleSelect?.selectedOptions[0]?.text || 'Ruolo';
+        const label = row.querySelector('input[name$=".label"]')?.value || roleName;
+        const emoji = row.querySelector('input[name$=".emoji"]')?.value || '';
+        const style = row.querySelector('select[name$=".style"]')?.value;
+        const bg = style==='Success'?'#10b981':style==='Danger'?'#ef4444':style==='Primary'?'#5865F2':'#4f545c';
+        buttons += `<div style="display:inline-block;margin:8px;padding:10px 18px;background:${bg};color:white;border-radius:8px;">
+          ${emoji} ${label}
+        </div>`;
+      });
+      document.getElementById('live-preview').innerHTML = `
+        <div style="background:${color};padding:12px 16px;border-radius:8px 8px 0 0;color:white;font-weight:700;">${title}</div>
+        <div style="padding:20px;background:#36393f;color:#dcddde;border-radius:0 0 8px 8px;">
+          <p style="margin:0 0 20px;max-width:80%;">${desc.replace(/\n/g,'<br>')}</p>
+          <div>${buttons||'<em>Nessun ruolo configurato</em>'}</div>
+        </div>
+      `;
+    }
+
+    async function sendReactionRoleMessage() {
+      const form = document.getElementById('configForm');
+      const data = new FormData(form);
+      const roles = [];
+      document.querySelectorAll('.role-row').forEach(row => {
+        const roleId = row.querySelector('select[name$=".roleId"]')?.value;
+        if (roleId) {
+          roles.push({
+            roleId,
+            label: row.querySelector('input[name$=".label"]')?.value || null,
+            emoji: row.querySelector('input[name$=".emoji"]')?.value || null,
+            style: row.querySelector('select[name$=".style"]')?.value || 'Secondary'
+          });
+        }
+      });
+      data.append('reactionroles.roles', JSON.stringify(roles));
+
+      try {
+        const res = await fetch(`/guild/<%= selectedGuild.id %>/reactionrole/send`, {
+          method: 'POST',
+          body: data
+        });
+        const json = await res.json();
+        if (json.success) {
+          showNotification('Messaggio Reaction Role inviato con successo!', false);
+        } else {
+          showNotification('Errore: ' + json.error, true);
+        }
+      } catch (err) {
+        showNotification('Errore di rete!', true);
+      }
+    }
+
+    function showNotification(msg, error = false) {
+      const n = document.createElement('div');
+      n.className = `notification ${error ? 'error' : 'success'}`;
+      n.innerHTML = `<i class="fas fa-${error?'exclamation-triangle':'check-circle'}"></i> ${msg}`;
+      document.body.appendChild(n);
+      setTimeout(() => n.classList.add('show'), 50);
+      setTimeout(() => { n.classList.remove('show'); setTimeout(() => n.remove(), 500); }, 3000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      document.getElementById('general').style.display = 'block';
+      updatePreview();
+      document.addEventListener('input', updatePreview);
+      document.addEventListener('change', updatePreview);
+    });
+  </script>
+</body>
+</html>
