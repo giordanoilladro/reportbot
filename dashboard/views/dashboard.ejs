@@ -137,6 +137,21 @@
     .notification.show { transform:translateY(0); opacity:1; }
     .notification.success { background:linear-gradient(135deg,#10b981,#059669); }
     .notification.error { background:linear-gradient(135deg,#ef4444,#dc2626); }
+
+    /* BOX VIOLA PROFESSIONALE */
+    .load-rr-card {
+      background: rgba(88, 101, 242, 0.1);
+      border: 2px solid rgba(88, 101, 242, 0.3);
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 32px;
+      backdrop-filter: blur(10px);
+    }
+    .load-rr-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 16px;
+      color: #c4b5fd;
+    }
   </style>
 </head>
 <body>
@@ -163,10 +178,10 @@
     </div>
     <div class="external-links">
       <h3>Pagine</h3>
-      <a href="/home" class="external-link">Home <span>Home</span></a>
-      <a href="/termini" class="external-link">Termini <span>Termini</span></a>
-      <a href="/privacy" class="external-link">Privacy <span>Privacy</span></a>
-      <a href="/collabora" class="external-link">Collabora <span>Collabora</span></a>
+      <a href="/home" class="external-link">Home</a>
+      <a href="/termini" class="external-link">Termini</a>
+      <a href="/privacy" class="external-link">Privacy</a>
+      <a href="/collabora" class="external-link">Collabora</a>
     </div>
   </div>
 
@@ -309,10 +324,36 @@
             <button type="button" onclick="sendReactionRoleMessage()" class="btn btn-primary">
               Invia / Aggiorna Messaggio
             </button>
-          </div>
 
-          <div class="mt-4">
-            <button type="submit" class="btn btn-primary">Salva Configurazione</button>
+            <!-- BOX VIOLA PROFESSIONALE PER MODIFICARE IL REACTION ROLE ESISTENTE -->
+            <% if (settings.reactionroles?.channelId) { %>
+              <div class="load-rr-card">
+                <h3>Modifica il Reaction Role esistente</h3>
+                <div class="flex flex-col sm:flex-row gap-6 items-center">
+                  <div class="flex-1 text-left">
+                    <p class="text-lg text-purple-300 font-medium">
+                      <%= settings.reactionroles.title || 'Senza titolo' %>
+                    </p>
+                    <p class="text-sm text-gray-400">
+                      Canale: <%= settings.reactionroles.channelId ? '<#' + settings.reactionroles.channelId + '>' : 'non impostato' %> • 
+                      <%= (settings.reactionroles.roles || []).length %> ruoli configurati
+                    </p>
+                  </div>
+                  <div>
+                    <button type="button" class="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 transition shadow-2xl text-lg transform hover:scale-105">
+                      Modifica qui sopra e salva
+                    </button>
+                  </div>
+                </div>
+                <p class="text-sm text-gray-500 mt-4 italic">
+                  Hai già un Reaction Role attivo! Modifica i campi sopra e clicca "Salva Configurazione" per aggiornarlo.
+                </p>
+              </div>
+            <% } %>
+
+            <div class="mt-4">
+              <button type="submit" class="btn btn-primary text-lg px-8 py-4">Salva Configurazione</button>
+            </div>
           </div>
         </form>
       </div>
@@ -361,22 +402,14 @@
       if (!hasGuild) return showNotification("Seleziona un server!", true);
       const form = document.getElementById('configForm');
       const data = new FormData(form);
-      const roles = [];
-      document.querySelectorAll('.role-row').forEach(row => {
-        const roleId = row.querySelector('select')?.value;
-        const label = row.querySelector('input')?.value;
-        if (roleId) roles.push({ roleId, label: label || null });
-      });
-      data.append('roles', JSON.stringify(roles));
-
       try {
         const res = await fetch(`/guild/${guildId}/reactionrole/send`, { method: 'POST', body: data });
         const json = await res.json();
         if (json.success) {
           document.querySelector('[name="reactionroles.messageId"]').value = json.messageId;
-          showNotification("Messaggio inviato!", false);
+          showNotification("Messaggio Reaction Role inviato/aggiornato!", false);
         } else {
-          showNotification(json.error || "Errore", true);
+          showNotification(json.error || "Errore invio", true);
         }
       } catch (err) {
         showNotification("Errore di rete!", true);
@@ -398,10 +431,10 @@
     });
   </script>
 
-  <!-- PASSA CANALI E RUOLI AL FRONTEND -->
   <script>
     window.channels = <%- JSON.stringify(channels || []) %>;
     window.roles = <%- JSON.stringify(roles || []) %>;
+    window.currentSettings = <%- JSON.stringify(settings) %>;
   </script>
 </body>
 </html>
