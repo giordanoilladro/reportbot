@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const fs = require('fs');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const GuildSettings = require('../models/GuildSettings');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -8,11 +8,11 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(sub => sub
       .setName('send')
-      .setDescription('Invia/aggiorna il messaggio Reaction Roles')
+      .setDescription('Invia o aggiorna il messaggio Reaction Roles')
     )
     .addSubcommand(sub => sub
       .setName('reset')
-      .setDescription('Elimina il messaggio Reaction Roles dal server')
+      .setDescription('Elimina il messaggio Reaction Roles')
     ),
 
   async execute(interaction) {
@@ -21,63 +21,48 @@ module.exports = {
     }
 
     const guildId = interaction.guild.id;
-    let servers = {};
-    try {
-      if (fs.existsSync('./data/servers.json')) {
-        servers = JSON.parse(fs.readFileSync('./data/servers.json', 'utf-8'));
-      }
-    } catch (err) {
-      return interaction.reply({ content: 'Errore lettura config. Contatta lo staff.', ephemeral: true });
-    }
-
-    const config = servers[guildId]?.reactionroles;
+    const dbDoc = await GuildSettings.findOne({ guildId });
+    const config = dbDoc?.reactionroles || {};
 
     if (!config?.enabled || !config.channelId) {
-      return interaction.reply({ content: 'Reaction Roles non configurato!\nVai sul sito → Dashboard → Reaction Roles', ephemeral: true });
+      return interaction.reply({
+        content: 'Reaction Roles non configurato!\nVai su https://hamsterhouse.it → Dashboard → Reaction Roles',
+        ephemeral: true
+      });
     }
 
     const channel = interaction.guild.channels.cache.get(config.channelId);
     if (!channel) {
-      return interaction.reply({ content: 'Canale non trovato! Ricontrolla la config.', ephemeral: true });
+      return interaction.reply({ content: 'Canale non trovato! Ricontrolla la configurazione.', ephemeral: true });
     }
 
-    // === SUBCOMMAND: SEND ===
     if (interaction.options.getSubcommand() === 'send') {
       await interaction.deferReply({ ephemeral: true });
 
-      const { EmbedBuilder, MessageActionRow, MessageButton } = require('discord.js');
       const embed = new EmbedBuilder()
         .setTitle(config.title || "Scegli i tuoi ruoli!")
         .setDescription(config.description || "Clicca sui pulsanti per ottenere i ruoli!")
         .setColor(config.color || "#5865F2");
-      if (config.thumbnail) embed.setThumbnail(config.thumbnail);
-
-      const buttons = [];
-      for (const r of config.roles || []) {
-        if (!r.roleId || !interaction.guild.roles.cache.has(r.roleId)) continue;
-
-        const style = {
-          Primary: 'PRIMARY',
-          Secondary: 'SECONDARY',
-          Success: 'SUCCESS',
-          Danger: 'DANGER'
-        }[r.style] || 'SECONDARY';
-
-        buttons.push(
-          new MessageButton()
-            .setCustomId(`rr_${r.roleId}`)
-            .setLabel(r.label || interaction.guild.roles.cache.get(r.roleId).name)
-            .setEmoji(r.emoji || null)
-            .setStyle(style)
-        );
-      }
 
       const rows = [];
-      for (let i = 0; i < 3; i++) {
-        const row = new MessageActionRow();
-        buttons.slice(i * 5, (i + 1) * 5).forEach(b => row.addComponents(b));
-        if (row.components.length) rows.push(row);
-      }
+      let row = new ActionRowBuilder();
+
+      config.roles?.forEach((r, i) => {
+        if (!r.roleId || !interaction.guild.roles.cache.has(r.roleId)) return;
+
+        if (i % 5 === 0 && i !== 0) {
+          rows.push(row);
+          row = new ActionRowBuilder();
+        }
+
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`rr_${r.roleId}`)
+            .setLabel(r.label || interaction.guild.roles.cache.get(r.roleId).name)
+            .setStyle(ButtonStyle.Secondary)
+        );
+      });
+      if (row.components.length) rows.push(row);
 
       let message;
       if (config.messageId) {
@@ -93,19 +78,18 @@ module.exports = {
         message = await channel.send({ embeds: [embed], components: rows });
       }
 
-      // Aggiorna messageId
-      if (!servers[guildId]) servers[guildId] = {};
-      if (!servers[guildId].reactionroles) servers[guildId].reactionroles = {};
-      servers[guildId].reactionroles.messageId = message.id;
-      fs.writeFileSync('./data/servers.json', JSON.stringify(servers, null, 2));
+      // Salva messageId su MongoDB
+      await GuildSettings.updateOne(
+        { guildId },
+        { $set: { "reactionroles.messageId": message.id } }
+      );
 
       await interaction.editReply({
-        content: `Messaggio Reaction Roles inviato/aggiornato in ${channel}!\nLink: ${message.url}`,
+        content: `Messaggio Reaction Roles inviato/aggiornato!\n${message.url}`,
         ephemeral: true
       });
     }
 
-    // === SUBCOMMAND: RESET ===
     else if (interaction.options.getSubcommand() === 'reset') {
       await interaction.deferReply({ ephemeral: true });
 
@@ -113,19 +97,16 @@ module.exports = {
         try {
           const msg = await channel.messages.fetch(config.messageId);
           await msg.delete();
-        } catch (err) {
-          console.log('Messaggio già eliminato o non trovato');
-        }
+        } catch {}
       }
 
-      // Rimuovi messageId dal JSON
-      if (servers[guildId]?.reactionroles) {
-        delete servers[guildId].reactionroles.messageId;
-        fs.writeFileSync('./data/servers.json', JSON.stringify(servers, null, 2));
-      }
+      await GuildSettings.updateOne(
+        { guildId },
+        { $unset: { "reactionroles.messageId": "" } }
+      );
 
       await interaction.editReply({
-        content: 'Messaggio Reaction Roles eliminato dal server!',
+        content: 'Messaggio Reaction Roles eliminato con successo!',
         ephemeral: true
       });
     }
