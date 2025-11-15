@@ -35,12 +35,35 @@ if (process.env.MONGO_URI) {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'fallback_secret_very_long_random_string',
+
+// === FIX SESSIONE SU FLY.IO (QUESTA È LA RIGA MAGICA) ===
+app.set('trust proxy', 1); // ← RISOLVE IL LOOP LOGIN
+
+// === SESSION CON MONGO STORE (elimina anche il MemoryStore warning) ===
+let sessionConfig = {
+  secret: process.env.SESSION_SECRET || 'hamsterhouse_2025_super_segretissimo_cambia_questo',
+  name: 'hamster.sid',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000, secure: true, sameSite: 'lax' }
-}));
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000, // 24 ore
+    secure: true,        // obbligatorio su HTTPS
+    httpOnly: true,
+    sameSite: 'lax'
+  }
+};
+
+if (process.env.MONGO_URI) {
+  const MongoStore = require('connect-mongo');
+  sessionConfig.store = MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    ttl: 24 * 60 * 60,
+    autoRemove: 'native'
+  });
+}
+
+app.use(session(sessionConfig));
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -100,7 +123,6 @@ app.get('/auth/callback', async (req, res) => {
     let userGuilds = await guildsRes.json();
     if (!Array.isArray(userGuilds)) userGuilds = [];
 
-    // Prendi i server dove il bot è presente
     let botGuildIds = [];
     if (process.env.DISCORD_TOKEN) {
       try {
@@ -144,7 +166,7 @@ const requireAuth = (req, res, next) => {
 };
 
 // ===================================
-// DASHBOARD
+// DASHBOARD (resto identico al tuo precedente, funziona tutto)
 // ===================================
 app.get('/dashboard', requireAuth, (req, res) => {
   res.render('dashboard', {
@@ -169,7 +191,6 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
     let channels = [];
     let roles = [];
 
-    // Usa l'API Discord (sempre affidabile)
     try {
       const guildRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}`, {
         headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` }
@@ -212,7 +233,6 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
   }
 });
 
-// Salva configurazione
 app.post('/guild/:id/save', requireAuth, async (req, res) => {
   const guildId = req.params.id;
   if (!req.session.guilds?.some(g => g.id === guildId))
@@ -231,7 +251,6 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
   }
 });
 
-// Invia/aggiorna messaggio Reaction Role dalla dashboard
 app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
   const guildId = req.params.id;
   if (!req.session.guilds?.some(g => g.id === guildId))
