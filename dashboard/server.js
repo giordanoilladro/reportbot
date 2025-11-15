@@ -31,16 +31,15 @@ if (process.env.MONGO_URI) {
   console.warn('MONGO_URI mancante → DB disabilitato');
 }
 
-// === MIDDLEWARE ===
+// === MIDDLEWARE BASE ===
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
 
 // === SESSIONE STABILE SU FLY.IO ===
 app.set('trust proxy', 1);
 
 let sessionConfig = {
-  secret: process.env.SESSION_SECRET || 'hamsterhouse_2025_super_segretissimo_cambia_questo',
+  secret: process.env.SESSION_SECRET || '9c78140c35df616184db69473b2272bf',
   name: 'hamster.sid',
   resave: false,
   saveUninitialized: false,
@@ -63,6 +62,7 @@ if (process.env.MONGO_URI) {
 
 app.use(session(sessionConfig));
 
+// === VIEW ENGINE (OBBLIGATORIO PRIMA DELLE ROTTE!) ===
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -76,21 +76,20 @@ app.use((req, res, next) => {
 });
 
 // ===================================
-// ROTTE STATICHE
+// ROTTE STATICHE (PRIMA DI express.static!)
 // ===================================
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/pages/home.html')));
+
 const staticPages = ['collabora', 'termini', 'privacy', 'home'].map(p => ({ route: `/${p}`, file: `${p}.html` }));
 staticPages.forEach(page => {
   app.get(page.route, (req, res) => res.sendFile(path.join(__dirname, 'public/pages', page.file)));
 });
 
-// === OAUTH2 (invariato, funziona) ===
+// === OAUTH2 ===
 app.get('/login', (req, res) => {
   const url = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
   res.redirect(url);
 });
-
-// ... (tutto il callback OAuth2 resta identico al tuo, funziona già)
 
 // === AUTH MIDDLEWARE ===
 const requireAuth = (req, res, next) => {
@@ -99,7 +98,7 @@ const requireAuth = (req, res, next) => {
 };
 
 // ===================================
-// DASHBOARD
+// DASHBOARD – ROTTE PRINCIPALI (DEVONO VENIRE PRIMA DI express.static!)
 // ===================================
 app.get('/dashboard', requireAuth, (req, res) => {
   res.render('dashboard', {
@@ -120,8 +119,6 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
     const guild = req.session.guilds.find(g => g.id === guildId);
     const dbDoc = await GuildSettings.findOne({ guildId });
     const settings = dbDoc ? dbDoc.toObject() : {};
-
-    console.log(`Caricata configurazione per ${guildId}:`, settings); // DEBUG
 
     let channels = [];
     let roles = [];
@@ -168,10 +165,9 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
   }
 });
 
-// === SALVA CONFIGURAZIONE (FIXATO AL 100%) ===
+// === SALVA CONFIGURAZIONE ===
 app.post('/guild/:id/save', requireAuth, async (req, res) => {
   const guildId = req.params.id;
-
   if (!req.session.guilds?.some(g => g.id === guildId)) {
     return res.json({ success: false, error: 'No permessi' });
   }
@@ -183,16 +179,15 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    console.log(`Configurazione salvata con successo per guild ${guildId}`);
+    console.log(`Configurazione salvata per ${guildId}`);
     res.json({ success: true, data: updated });
-
   } catch (err) {
-    console.error('Errore salvataggio configurazione:', err);
-    res.json({ success: false, error: 'Errore database: ' + err.message });
+    console.error('Errore salvataggio:', err);
+    res.json({ success: false, error: err.message });
   }
 });
 
-// === INVIA REACTION ROLE DALLA DASHBOARD (FUNZIONA ANCHE SENZA global.client) ===
+// === INVIO REACTION ROLE ===
 app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
   const guildId = req.params.id;
   if (!req.session.guilds?.some(g => g.id === guildId))
@@ -203,7 +198,7 @@ app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
     const config = dbDoc?.reactionroles || {};
 
     if (!config.channelId || !config.roles || config.roles.length === 0) {
-      return res.json({ success: false, error: 'Configurazione incompleta (canale o ruoli mancanti)' });
+      return res.json({ success: false, error: 'Configurazione incompleta' });
     }
 
     const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -217,10 +212,7 @@ app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
     let row = new ActionRowBuilder();
 
     config.roles.forEach((r, i) => {
-      if (i % 5 === 0 && i !== 0) {
-        rows.push(row);
-        row = new ActionRowBuilder();
-      }
+      if (i % 5 === 0 && i !== 0) { rows.push(row); row = new ActionRowBuilder(); }
       row.addComponents(
         new ButtonBuilder()
           .setCustomId(`rr_${r.roleId}`)
@@ -231,7 +223,6 @@ app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
     });
     if (row.components.length > 0) rows.push(row);
 
-    // Usa il token del bot per inviare il messaggio
     const channelRes = await fetch(`https://discord.com/api/v10/channels/${config.channelId}/messages`, {
       method: 'POST',
       headers: {
@@ -243,30 +234,37 @@ app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
 
     if (!channelRes.ok) {
       const err = await channelRes.text();
-      throw new Error(`Discord API error: ${channelRes.status} - ${err}`);
+      throw new Error(`Discord API: ${channelRes.status} - ${err}`);
     }
 
     const message = await channelRes.json();
 
-    // Salva messageId
     await GuildSettings.updateOne(
       { guildId },
       { $set: { 'reactionroles.messageId': message.id } }
     );
 
-    res.json({ success: true, messageId: message.id, url: `https://discord.com/channels/${guildId}/${config.channelId}/${message.id}` });
+    res.json({
+      success: true,
+      messageId: message.id,
+      url: `https://discord.com/channels/${guildId}/${config.channelId}/${message.id}`
+    });
 
   } catch (err) {
-    console.error('Errore invio reaction role dalla dashboard:', err);
+    console.error('Errore invio reaction role:', err);
     res.json({ success: false, error: err.message });
   }
 });
 
-// 404
+// === ORA express.static (dopo tutte le rotte dinamiche!) ===
+app.use(express.static(path.join(__dirname, 'public')));
+
+// === 404 finale (sempre per ultimo!) ===
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public/pages/404.html'));
 });
 
+// === AVVIO SERVER ===
 app.listen(PORT, HOST, () => {
   console.log('DASHBOARD ONLINE');
   console.log(`APRI → ${BASE_URL}`);
