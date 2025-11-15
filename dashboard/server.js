@@ -91,6 +91,48 @@ app.get('/login', (req, res) => {
   res.redirect(url);
 });
 
+
+app.get('/auth/callback', async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send('Errore: nessun codice ricevuto da Discord');
+
+  try {
+    const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      body: new URLSearchParams({
+        client_id: process.env.CLIENT_ID,
+        client_secret: process.env.CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: process.env.REDIRECT_URI || 'https://hamsterhouse.it/auth/callback',
+        scope: 'identify guilds',
+      }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+
+    const tokens = await tokenResponse.json();
+    if (tokens.error) throw new Error(tokens.error_description || tokens.error);
+
+    const userResponse = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+    const user = await userResponse.json();
+
+    const guildsResponse = await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+    const guilds = await guildsResponse.json();
+
+    req.session.user = user;
+    req.session.guilds = guilds.filter(g => (BigInt(g.permissions) & 8n) === 8n); // solo admin
+    req.session.save(() => res.redirect('/dashboard'));
+
+  } catch (err) {
+    console.error('Errore OAuth callback:', err);
+    res.status(500).send('Login fallito. Riprova.');
+  }
+});
+
 // === AUTH MIDDLEWARE ===
 const requireAuth = (req, res, next) => {
   if (!req.session.user) return res.redirect('/login');
