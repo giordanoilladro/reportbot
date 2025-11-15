@@ -8,6 +8,9 @@ primary_region = 'fra'
 
 [build]
 
+  [build.args]
+    NPM_CONFIG_LEGACY_PEER_DEPS = "true"
+
 [[mounts]]
   source = 'data'
   destination = '/data'
