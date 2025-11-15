@@ -17,6 +17,21 @@ const guildSettingsSchema = new mongoose.Schema({
     roleId: { type: String, default: null }
   },
 
+  reactionroles: {
+    enabled: Boolean,
+    channelId: String,
+    messageId: String,
+    title: String,
+    description: String,
+    color: String,
+    roles: [
+      {
+        roleId: String,
+        label: String,
+      },
+    ],
+  },
+
   // === BENVENUTO ===
 welcome: {
     enabled: { type: Boolean, default: false },
