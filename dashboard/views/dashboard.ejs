@@ -208,7 +208,7 @@
           </div>
         </div>
 
-        <form id="configForm">
+        <form id="configForm" method="POST" action="/guild/<%= selectedGuild.id %>/save"></form>
           <input type="hidden" name="guildId" value="<%= selectedGuild.id %>">
           <input type="hidden" name="reactionroles.messageId" value="<%= settings.reactionroles?.messageId || '' %>">
 
