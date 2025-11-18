@@ -447,3 +447,48 @@ input:checked + .slider:before {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1rem;
 }
+
+/* ===== MOBILE VERO – TELEFONI (≤ 768px) ===== */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1.5rem 1rem;
+  }
+  .header h1 {
+    font-size: 2rem;
+  }
+  .header p {
+    font-size: 1rem;
+  }
+  .card {
+    padding: 1.5rem;
+  }
+  .guild-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  .guild-icon-large {
+    width: 70px;
+    height: 70px;
+  }
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .mobile-menu {
+    display: block !important;
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+}
+
+/* Schermi piccolissimi */
+@media (max-width: 480px) {
+  .header h1 { font-size: 1.8rem; }
+  .card { padding: 1.2rem; }
+  .btn { width: 100%; justify-content: center; }
+}
