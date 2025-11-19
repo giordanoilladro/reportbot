@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const fs = require('fs');
-const path = require('path');
-const file = path.join(__dirname, '../data/canali-recensioni.json');
+
+const CONFIG_FILE = '/data/config.json';
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -13,11 +13,15 @@ module.exports = {
 
   async execute(interaction) {
     const canale = interaction.options.getChannel('canale');
-    let data = {};
 
-    if (fs.existsSync(file)) data = JSON.parse(fs.readFileSync(file));
-    data[interaction.guild.id] = canale.id;
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    let config = {};
+    if (fs.existsSync(CONFIG_FILE)) {
+      const raw = fs.readFileSync(CONFIG_FILE, 'utf-8').trim();
+      if (raw) config = JSON.parse(raw);
+    }
+
+    config[interaction.guild.id] = canale.id;
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 
     await interaction.reply({ content: `Canale recensioni impostato: ${canale}`, ephemeral: true });
   },

@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
-const path = require('path');
-const file = path.join(__dirname, '../data/recensioni.json');
+
+const RECENSIONI_FILE = '/data/recensioni.json';
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,15 +12,21 @@ module.exports = {
   async execute(interaction) {
     const staff = interaction.options.getUser('staff');
 
-    if (!fs.existsSync(file)) {
-      return interaction.reply({ content: 'Nessuna recensione salvata ancora!', ephemeral: true });
+    if (!fs.existsSync(RECENSIONI_FILE)) {
+      return interaction.reply({ content: 'Nessuna recensione ancora!', ephemeral: true });
     }
 
-    const tutte = JSON.parse(fs.readFileSync(file));
-    const delServer = tutte.filter(r => r.guildId === interaction.guild.id && r.staffId === staff.id);
+    const raw = fs.readFileSync(RECENSIONI_FILE, 'utf-8').trim();
+    if (!raw) return interaction.reply({ content: 'Nessuna recensione ancora!', ephemeral: true });
 
+    let tutte = [];
+    try { tutte = JSON.parse(raw); } catch(e) {
+      return interaction.reply({ content: 'Errore database, contatta un admin.', ephemeral: true });
+    }
+
+    const delServer = tutte.filter(r => r.guildId === interaction.guild.id && r.staffId === staff.id);
     if (delServer.length === 0) {
-      return interaction.reply({ content: `${staff.username} non ha ancora recensioni in questo server.`, ephemeral: true });
+      return interaction.reply({ content: `${staff.username} non ha ancora recensioni.`, ephemeral: true });
     }
 
     const media = (delServer.reduce((a, r) => a + r.stelle, 0) / delServer.length).toFixed(2);
