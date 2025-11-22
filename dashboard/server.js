@@ -208,40 +208,36 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
 });
 
 // === SALVA CONFIGURAZIONE ===
-// === SALVA CONFIGURAZIONE (VERSIONE CORRETTA – SOSTITUISCI TUTTA QUESTA ROTTA) ===
+// === SALVA CONFIGURAZIONE – CON NOTIFICA E FIX COMPLETO ===
 app.post('/guild/:id/save', requireAuth, async (req, res) => {
   const guildId = req.params.id;
 
-  // Controllo permessi
   if (!req.session.guilds?.some(g => g.id === guildId)) {
     return res.json({ success: false, error: 'No permessi' });
   }
 
   try {
-    let body = { ...req.body };
+    const body = req.body;
 
-    // FIX REACTION ROLES – ricostruisce l'array correttamente anche con aggiunte/rimozioni dinamiche
-    if (body.reactionroles && body.reactionroles.roles) {
-      const rawRoles = {};
-      const finalRoles = [];
+    // === FIX REACTION ROLES: RICOSTRUISCI ARRAY CORRETTO ===
+    const rolesMap = new Map();
+    Object.keys(body).forEach(key => {
+      const match = key.match(/^reactionroles\.roles\[(\d+)\]\.(roleId|label|emoji)$/);
+      if (match) {
+        const index = match[1];
+        const field = match[2];
+        if (!rolesMap.has(index)) rolesMap.set(index, {});
+        rolesMap.get(index)[field] = body[key];
+        delete body[key]; // evita conflitti con MongoDB
+      }
+    });
 
-      // Raccoglie tutti i campi reactionroles.roles[X].roleId e .label
-      Object.keys(body).forEach(key => {
-        const match = key.match(/^reactionroles\.roles\[(\d+)\]\.(roleId|label|emoji)$/);
-        if (match) {
-          const idx = match[1];
-          const field = match[2];
-          if (!rawRoles[idx]) rawRoles[idx] = {};
-          rawRoles[idx][field] = body[key];
-          // rimuove il campo dal body così non crea casini con $set
-          delete body[key];
-        }
-      });
-
-      // Ricostruisce l'array pulito
-      Object.values(rawRoles).forEach(r => {
+    const cleanRoles = [];
+    [...rolesMap.entries()]
+      .sort(([a], [b]) => a - b)
+      .forEach(([, r]) => {
         if (r.roleId && r.roleId.trim() !== '') {
-          finalRoles.push({
+          cleanRoles.push({
             roleId: r.roleId.trim(),
             label: r.label?.trim() || null,
             emoji: r.emoji?.trim() || null
@@ -249,29 +245,27 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
         }
       });
 
-      // Risostituisce l’array corretto
-      body.reactionroles.roles = finalRoles;
-    }
+    // Forza struttura corretta
+    if (!body.reactionroles) body.reactionroles = {};
+    body.reactionroles.roles = cleanRoles;
 
-    // Pulizia campi vuoti (opzionale ma bella)
-    if (body.reactionroles?.channelId === '') delete body.reactionroles.channelId;
-    if (body.reactionroles?.title?.trim() === '') body.reactionroles.title = 'Scegli i tuoi ruoli!';
-    if (body.reactionroles?.description?.trim() === '') body.reactionroles.description = 'Clicca sui pulsanti qui sotto per ottenere i ruoli che preferisci!';
-    if (body.reactionroles?.color?.trim() === '') body.reactionroles.color = '#5865F2';
-
-    // Salva con merge corretto
-    const updated = await GuildSettings.findOneAndUpdate(
+    // === SALVA NEL DATABASE ===
+    await GuildSettings.findOneAndUpdate(
       { guildId },
       { $set: body },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    console.log(`Configurazione salvata per ${guildId} → ${finalRoles.length} reaction roles`);
-    res.json({ success: true, data: updated });
+    // === RISPOSTA JSON CON SUCCESSO E MESSAGGIO ===
+    res.json({
+      success: true,
+      message: 'Salvataggio completato!',
+      rolesCount: cleanRoles.length
+    });
 
   } catch (err) {
-    console.error('Errore salvataggio config:', err);
-    res.json({ success: false, error: err.message });
+    console.error('Errore salvataggio:', err);
+    res.json({ success: false, error: 'Errore durante il salvataggio' });
   }
 });
 
