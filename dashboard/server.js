@@ -208,23 +208,69 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
 });
 
 // === SALVA CONFIGURAZIONE ===
+// === SALVA CONFIGURAZIONE (VERSIONE CORRETTA – SOSTITUISCI TUTTA QUESTA ROTTA) ===
 app.post('/guild/:id/save', requireAuth, async (req, res) => {
   const guildId = req.params.id;
+
+  // Controllo permessi
   if (!req.session.guilds?.some(g => g.id === guildId)) {
     return res.json({ success: false, error: 'No permessi' });
   }
 
   try {
+    let body = { ...req.body };
+
+    // FIX REACTION ROLES – ricostruisce l'array correttamente anche con aggiunte/rimozioni dinamiche
+    if (body.reactionroles && body.reactionroles.roles) {
+      const rawRoles = {};
+      const finalRoles = [];
+
+      // Raccoglie tutti i campi reactionroles.roles[X].roleId e .label
+      Object.keys(body).forEach(key => {
+        const match = key.match(/^reactionroles\.roles\[(\d+)\]\.(roleId|label|emoji)$/);
+        if (match) {
+          const idx = match[1];
+          const field = match[2];
+          if (!rawRoles[idx]) rawRoles[idx] = {};
+          rawRoles[idx][field] = body[key];
+          // rimuove il campo dal body così non crea casini con $set
+          delete body[key];
+        }
+      });
+
+      // Ricostruisce l'array pulito
+      Object.values(rawRoles).forEach(r => {
+        if (r.roleId && r.roleId.trim() !== '') {
+          finalRoles.push({
+            roleId: r.roleId.trim(),
+            label: r.label?.trim() || null,
+            emoji: r.emoji?.trim() || null
+          });
+        }
+      });
+
+      // Risostituisce l’array corretto
+      body.reactionroles.roles = finalRoles;
+    }
+
+    // Pulizia campi vuoti (opzionale ma bella)
+    if (body.reactionroles?.channelId === '') delete body.reactionroles.channelId;
+    if (body.reactionroles?.title?.trim() === '') body.reactionroles.title = 'Scegli i tuoi ruoli!';
+    if (body.reactionroles?.description?.trim() === '') body.reactionroles.description = 'Clicca sui pulsanti qui sotto per ottenere i ruoli che preferisci!';
+    if (body.reactionroles?.color?.trim() === '') body.reactionroles.color = '#5865F2';
+
+    // Salva con merge corretto
     const updated = await GuildSettings.findOneAndUpdate(
       { guildId },
-      { $set: req.body },
+      { $set: body },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    console.log(`Configurazione salvata per ${guildId}`);
+    console.log(`Configurazione salvata per ${guildId} → ${finalRoles.length} reaction roles`);
     res.json({ success: true, data: updated });
+
   } catch (err) {
-    console.error('Errore salvataggio:', err);
+    console.error('Errore salvataggio config:', err);
     res.json({ success: false, error: err.message });
   }
 });
