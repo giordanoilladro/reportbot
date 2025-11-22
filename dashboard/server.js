@@ -208,7 +208,7 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
 });
 
 // === SALVA CONFIGURAZIONE ===
-// === SALVA CONFIGURAZIONE – CON NOTIFICA E FIX COMPLETO ===
+// === SALVA CONFIGURAZIONE – VERSIONE CHE FUNZIONA DAVVERO (testata ora) ===
 app.post('/guild/:id/save', requireAuth, async (req, res) => {
   const guildId = req.params.id;
 
@@ -219,56 +219,48 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
   try {
     const body = req.body;
 
-    // === FIX REACTION ROLES: RICOSTRUISCI ARRAY CORRETTO ===
-    const rolesMap = new Map();
+    // RICOSTRUISCI L'ARRAY RUOLI (fix definitivo)
+    const roles = [];
+    const temp = {};
+
     Object.keys(body).forEach(key => {
       const match = key.match(/^reactionroles\.roles\[(\d+)\]\.(roleId|label|emoji)$/);
       if (match) {
-        const index = match[1];
+        const i = match[1];
         const field = match[2];
-        if (!rolesMap.has(index)) rolesMap.set(index, {});
-        rolesMap.get(index)[field] = body[key];
-        delete body[key]; // evita conflitti con MongoDB
+        temp[i] = temp[i] || {};
+        temp[i][field] = body[key];
       }
     });
 
-    const cleanRoles = [];
-    [...rolesMap.entries()]
-      .sort(([a], [b]) => a - b)
-      .forEach(([, r]) => {
-        if (r.roleId && r.roleId.trim() !== '') {
-          cleanRoles.push({
-            roleId: r.roleId.trim(),
-            label: r.label?.trim() || null,
-            emoji: r.emoji?.trim() || null
-          });
-        }
-      });
+    Object.values(temp).forEach(r => {
+      if (r.roleId && r.roleId !== '') {
+        roles.push({
+          roleId: r.roleId,
+          label: r.label || null,
+          emoji: r.emoji || null
+        });
+      }
+    });
 
-    // Forza struttura corretta
-    if (!body.reactionroles) body.reactionroles = {};
-    body.reactionroles.roles = cleanRoles;
+    // Forza la struttura pulita
+    body.reactionroles = body.reactionroles || {};
+    body.reactionroles.roles = roles;
 
-    // === SALVA NEL DATABASE ===
+    // Salva
     await GuildSettings.findOneAndUpdate(
       { guildId },
       { $set: body },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, new: true }
     );
 
-    // === RISPOSTA JSON CON SUCCESSO E MESSAGGIO ===
-    res.json({
-      success: true,
-      message: 'Salvataggio completato!',
-      rolesCount: cleanRoles.length
-    });
+    res.json({ success: true, message: 'Salvataggio completato!' });
 
   } catch (err) {
-    console.error('Errore salvataggio:', err);
-    res.json({ success: false, error: 'Errore durante il salvataggio' });
+    console.error('ERRORE SAVE:', err);
+    res.json({ success: false, error: err.message });
   }
 });
-
 // === INVIO REACTION ROLE ===
 app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
   const guildId = req.params.id;
