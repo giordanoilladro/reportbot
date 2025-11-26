@@ -44,7 +44,7 @@ module.exports = {
                 });
             }
 
-            const message = `:staff: **Staff** : ${staffName}\n:calendar_spiral: **Data** : ${today}\n:partner: **Partners** : ${partners}`;
+            const message = `<:Staff:1443248739073396806> **Staff** : ${staffName}\n:calendar_spiral: **Data** : ${today}\n<:partner:1443248870057574660> **Partners** : ${partners}`;
 
             await channel.send(message);
 
