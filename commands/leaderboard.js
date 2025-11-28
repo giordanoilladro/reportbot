@@ -1,48 +1,30 @@
+// commands/leaderboard.js
 const {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ChannelType,
 } = require('discord.js');
-const mongoose = require('mongoose');
-const { CronJob } = require('cron'); // AGGIUNGI QUESTA DIPENDENZA: npm i cron
-
-// Schema configurazione
-const LeaderboardConfig = mongoose.model(
-  'LeaderboardConfig',
-  new mongoose.Schema({
-    guildId: String,
-    roleId: String,
-    enabled: Boolean,
-    channelId: String,
-    messageId: String, // per editare sempre lo stesso messaggio
-  }),
-  'leaderboardconfigs'
-);
+const { CronJob } = require('cron');
+const LeaderboardConfig = require('../models/LeaderboardConfig');
+const UserStats = require('../models/UserStats');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('leaderboard')
-    .setDescription('Configura la leaderboard dello staff (tempo vocale + messaggi)')
+    .setDescription('Configura la leaderboard giornaliera dello staff')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addRoleOption((option) =>
-      option.setName('ruolo').setDescription('Ruolo staff da tracciare').setRequired(true)
+    .addRoleOption(o => o.setName('ruolo').setDescription('Ruolo staff').setRequired(true))
+    .addStringOption(o => o
+      .setName('stato')
+      .setDescription('Attiva o disattiva')
+      .setRequired(true)
+      .addChoices({ name: 'Attiva', value: 'true' }, { name: 'Disattiva', value: 'false' })
     )
-    .addStringOption((option) =>
-      option
-        .setName('stato')
-        .setDescription('Attiva o disattiva la leaderboard')
-        .setRequired(true)
-        .addChoices(
-          { name: 'Attiva', value: 'true' },
-          { name: 'Disattiva', value: 'false' }
-        )
-    )
-    .addChannelOption((option) =>
-      option
-        .setName('canale')
-        .setDescription('Canale dove postare la leaderboard')
-        .setRequired(true)
-        .addChannelTypes(ChannelType.GuildText)
+    .addChannelOption(o => o
+      .setName('canale')
+      .setDescription('Canale dove postare')
+      .setRequired(true)
+      .addChannelTypes(ChannelType.GuildText)
     ),
 
   async execute(interaction) {
@@ -53,49 +35,43 @@ module.exports = {
     const channel = interaction.options.getChannel('canale');
 
     // Salva configurazione
-    const config = await LeaderboardConfig.findOneAndUpdate(
+    await LeaderboardConfig.findOneAndUpdate(
       { guildId: interaction.guild.id },
-      {
-        guildId: interaction.guild.id,
-        roleId: role.id,
-        enabled: stato,
-        channelId: channel.id,
-      },
+      { guildId: interaction.guild.id, roleId: role.id, enabled: stato, channelId: channel.id },
       { upsert: true, new: true }
     );
 
-    // Se è stata appena attivata, avvia subito il cron job per questo server
+    // Gestione cron job
     if (stato && !global.leaderboardJobs?.[interaction.guild.id]) {
-      startDailyLeaderboard(interaction.client, interaction.guild.id);
+      const job = new CronJob('0 22 * * *', () => sendLeaderboard(interaction.client, interaction.guild.id), null, true, 'Europe/Rome');
+      if (!global.leaderboardJobs) global.leaderboardJobs = {};
+      global.leaderboardJobs[interaction.guild.id] = job;
+      job.start();
     }
-
-    // Se è stata disattivata, ferma il job
     if (!stato && global.leaderboardJobs?.[interaction.guild.id]) {
       global.leaderboardJobs[interaction.guild.id].stop();
       delete global.leaderboardJobs[interaction.guild.id];
     }
 
     await interaction.editReply({
-      embeds: [
-        {
-          title: 'Leaderboard Staff',
-          color: stato ? 0x00ff00 : 0xff0000,
-          description: `
-            **Stato**: ${stato ? 'Attivata' : 'Disattivata'}
-            **Ruolo tracciato**: ${role}
-            **Canale**: ${channel}
-            **Invio giornaliero**: Ogni giorno alle **22:00**
-          `.trim(),
-          footer: { text: 'Configurazione salvata su MongoDB' },
-          timestamp: new Date(),
-        },
-      ],
+      embeds: [{
+        title: 'Leaderboard Staff',
+        color: stato ? 0x00ff00 : 0xff0000,
+        description: `
+          **Stato**: ${stato ? 'Attivata' : 'Disattivata'}
+          **Ruolo**: ${role}
+          **Canale**: ${channel}
+          **Invio**: Ogni giorno alle **22:00**
+        `.trim(),
+        footer: { text: 'Configurazione salvata!' },
+        timestamp: new Date(),
+      }]
     });
   },
 };
 
-// === FUNZIONE CHE AVVIA LA LEADERBOARD GIORNALIERA ALLE 22:00 ===
-async function sendDailyLeaderboard(client, guildId) {
+// Funzione condivisa per inviare la leaderboard (usata dal cron e da /prova)
+async function sendLeaderboard(client, guildId) {
   const config = await LeaderboardConfig.findOne({ guildId, enabled: true });
   if (!config) return;
 
@@ -105,49 +81,31 @@ async function sendDailyLeaderboard(client, guildId) {
   const channel = guild.channels.cache.get(config.channelId);
   if (!channel) return;
 
-  const UserStats = mongoose.model(
-    'UserStats',
-    new mongoose.Schema({
-      userId: String,
-      guildId: String,
-      voiceTime: { type: Number, default: 0 },
-      messageCount: { type: Number, default: 0 },
-    })
-  );
-
   const top10 = await UserStats.find({ guildId })
     .sort({ voiceTime: -1, messageCount: -1 })
     .limit(10);
 
-  const formatTime = (seconds) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    return `${h}h ${m}m`;
-  };
+  const formatTime = s => `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 
   const embed = {
     color: 0x5865F2,
     title: 'Staff Leaderboard del Giorno',
-    description: 'Top 10 staff più attivi (tempo in vocale + messaggi)',
+    description: top10.length === 0 ? 'Nessun dato oggi...' : 'Top 10 più attivi',
     thumbnail: { url: guild.iconURL({ dynamic: true }) },
     fields: [],
     footer: { text: 'Aggiornata ogni giorno alle 22:00 • Resettata a mezzanotte' },
     timestamp: new Date(),
   };
 
-  if (top10.length === 0) {
-    embed.description = 'Nessun dato oggi... lo staff sta riposando';
-  } else {
-    top10.forEach((stat, i) => {
-      const medal = i === 0 ? '1st place' : i === 1 ? '2nd place' : i === 2 ? '3rd place' : `${i + 1}th`;
-      const user = client.users.cache.get(stat.userId);
-      embed.fields.push({
-        name: `${medal} ${user ? user.username : 'Utente sconosciuto'}`,
-        value: `Tempo in vocale: **${formatTime(stat.voiceTime)}**\nMessaggi: **${stat.messageCount.toLocaleString('it-IT')}**`,
-        inline: false,
-      });
+  top10.forEach((stat, i) => {
+    const user = client.users.cache.get(stat.userId);
+    const medal = i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? '3rd' : `${i + 1}º`;
+    embed.fields.push({
+      name: `${medal} ${user?.username || 'Sconosciuto'}`,
+      value: `Vocale: **${formatTime(stat.voiceTime)}**\nMessaggi: **${stat.messageCount.toLocaleString('it-IT')}**`,
+      inline: false,
     });
-  }
+  });
 
   try {
     if (config.messageId) {
@@ -157,35 +115,25 @@ async function sendDailyLeaderboard(client, guildId) {
       const sent = await channel.send({ embeds: [embed] });
       await LeaderboardConfig.updateOne({ guildId }, { messageId: sent.id });
     }
-  } catch (err) {
+  } catch {
     const sent = await channel.send({ embeds: [embed] });
     await LeaderboardConfig.updateOne({ guildId }, { messageId: sent.id });
   }
 }
 
-// Avvia il job alle 22:00 ogni giorno
-function startDailyLeaderboard(client, guildId) {
-  if (global.leaderboardJobs?.[guildId]) return;
+global.sendLeaderboard = sendLeaderboard; // così la puoi chiamare da altri comandi (es. /leaderboard prova)
 
-  const job = new CronJob(
-    '0 22 * * *', // Ogni giorno alle 22:00
-    () => sendDailyLeaderboard(client, guildId),
-    null,
-    true,
-    'Europe/Rome' // Fuso orario Italia
-  );
-
-  if (!global.leaderboardJobs) global.leaderboardJobs = {};
-  global.leaderboardJobs[guildId] = job;
-  job.start();
-}
-
-// Avvia automaticamente tutti i job esistenti all'avvio del bot (da mettere in ready event)
-async function startAllDailyLeaderboards(client) {
+// Avvia tutti i job all'avvio del bot (da chiamare nel ready event)
+async function startAllJobs(client) {
   const configs = await LeaderboardConfig.find({ enabled: true });
-  for (const config of configs) {
-    startDailyLeaderboard(client, config.guildId);
+  for (const cfg of configs) {
+    if (!global.leaderboardJobs?.[cfg.guildId]) {
+      const job = new CronJob('0 22 * * *', () => sendLeaderboard(client, cfg.guildId), null, true, 'Europe/Rome');
+      if (!global.leaderboardJobs) global.leaderboardJobs = {};
+      global.leaderboardJobs[cfg.guildId] = job;
+      job.start();
+    }
   }
 }
 
-module.exports.startAllDailyLeaderboards = startAllDailyLeaderboards;
+module.exports.startAllJobs = startAllJobs;
