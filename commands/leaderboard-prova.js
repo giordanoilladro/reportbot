@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('leaderboard')
+    .setName('test-leadboard')
     .setDescription('Invia SUBITO la leaderboard staff (test istantaneo)')
     .addSubcommand(sub => sub
       .setName('prova')
