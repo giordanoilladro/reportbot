@@ -54,11 +54,11 @@ let sessionConfig = {
 if (process.env.MONGO_URI) {
   const MongoStore = require('connect-mongo');
 
-  sessionConfig.store = new MongoStore({
-    mongoUrl: process.env.MONGO_URI,
-    ttl: 24 * 60 * 60,
-    autoRemove: 'native'
-  });
+  sessionConfig.store = MongoStore.create({
+  mongoUrl: process.env.MONGO_URI,
+  ttl: 24 * 60 * 60,
+  autoRemove: 'native'
+}); 
 }
 
 app.use(session(sessionConfig));
@@ -68,13 +68,13 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // === REDIRECT LOCALHOST ===
-app.use((req, res, next) => {
-  const host = req.headers.host || '';
-  if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0')) {
-    return res.redirect(301, BASE_URL + req.originalUrl);
-  }
-  next();
-});
+//app.use((req, res, next) => {
+//  const host = req.headers.host || '';
+//  if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0')) {
+//   return res.redirect(301, BASE_URL + req.originalUrl);
+//  }
+//  next();
+//});
 
 // ===================================
 // ROTTE STATICHE (PRIMA DI express.static!)
