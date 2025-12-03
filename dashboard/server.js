@@ -54,11 +54,11 @@ let sessionConfig = {
 if (process.env.MONGO_URI) {
   const MongoStore = require('connect-mongo');
 
-  sessionConfig.store = MongoStore.create({
-  mongoUrl: process.env.MONGO_URI,
-  ttl: 24 * 60 * 60,
-  autoRemove: 'native'
-}); 
+ // sessionConfig.store = MongoStore.create({
+ // mongoUrl: process.env.MONGO_URI,
+ // ttl: 24 * 60 * 60,
+ // autoRemove: 'native'
+//}); 
 }
 
 app.use(session(sessionConfig));
