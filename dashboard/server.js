@@ -53,7 +53,8 @@ let sessionConfig = {
 
 if (process.env.MONGO_URI) {
   const MongoStore = require('connect-mongo');
-  sessionConfig.store = MongoStore.create({
+
+  sessionConfig.store = new MongoStore({
     mongoUrl: process.env.MONGO_URI,
     ttl: 24 * 60 * 60,
     autoRemove: 'native'
