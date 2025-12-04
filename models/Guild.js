@@ -17,6 +17,8 @@ const guildSchema = new mongoose.Schema({
   },
   messages: { type: Map, of: Number, default: {} }, // userId -> count
   voiceTime: { type: Map, of: Number, default: {} }   // userId -> seconds
+  channelMessages:     { type: Map, of: Number, default: new Map() },
+  voiceChannelTime:    { type: Map, of: Number, default: new Map() },
 });
 
 module.exports = mongoose.model('Guild', guildSchema);

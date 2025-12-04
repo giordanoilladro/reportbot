@@ -98,8 +98,16 @@ module.exports = {
     // ──────────────────────────────
     // 4. CONTEGGIO MESSAGGI per la leaderboard
     // ──────────────────────────────
-    const currentCount = guildData.messages.get(message.author.id) || 0;
-    guildData.messages.set(message.author.id, currentCount + 1);
+const userCount = guildData.messages.get(message.author.id) || 0;
+    guildData.messages.set(message.author.id, userCount + 1);
+
+    // Conteggio messaggi per canale testo (fondamentale per la sezione "CANALI TESTO PIÙ ATTIVI")
+    if (message.channel?.id) {
+      const channelCount = guildData.channelMessages.get(message.channel.id) || 0;
+      guildData.channelMessages.set(message.channel.id, channelCount + 1);
+    }
+
+    // Salva tutto una volta sola alla fine
     await guildData.save();
   },
 };
