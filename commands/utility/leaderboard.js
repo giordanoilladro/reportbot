@@ -1,71 +1,106 @@
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas, loadImage, registerFont } = require('canvas');
 const Guild = require('../../models/Guild');
+const path = require('path');
+
+// REGISTRA FONT SICURI (funzionano ovunque)
+registerFont(path.join(__dirname, '../../fonts/Roboto-Bold.ttf'), { family: 'Roboto' });
+registerFont(path.join(__dirname, '../../fonts/NotoEmoji-Regular.ttf'), { family: 'Noto Emoji' });
+// Se usi Arial come fallback
+registerFont(path.join(__dirname, '../../fonts/Arial.ttf'), { family: 'Arial' });
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('leaderboard')
-    .setDescription('Mostra la classifica del server (messaggi e voce)'),
+    .setDescription('Classifica messaggi e voce del server'),
 
   async execute(interaction) {
     await interaction.deferReply();
+
     const guildData = await Guild.findOne({ guildId: interaction.guild.id });
-    if (!guildData) return interaction.editReply('Nessun dato ancora registrato!');
+    if (!guildData || (guildData.messages.size === 0 && guildData.voiceTime.size === 0)) {
+      return interaction.editReply('Nessun dato ancora registrato nel server!');
+    }
 
-    // Preparazione dati
-    const msgEntries = [...guildData.messages.entries()]
-      .map(([id, count]) => ({ id, count }))
-      .sort((a, b) => b.count - a.count)
+    // Top 3 messaggi
+    const topMsg = [...guildData.messages.entries()]
+      .map(([id, count]) => ({ id, value: count }))
+      .sort((a, b) => b.value - a.value)
       .slice(0, 3);
 
-    const voiceEntries = [...guildData.voiceTime.entries()]
-      .map(([id, seconds]) => ({ id, seconds: Math.floor(seconds / 60) }))
-      .sort((a, b) => b.seconds - a.seconds)
+    // Top 3 voce (in minuti)
+    const topVoice = [...guildData.voiceTime.entries()]
+      .map(([id, seconds]) => ({ id, value: Math.floor(seconds / 60) }))
+      .sort((a, b) => b.value - a.value)
       .slice(0, 3);
 
-    // Canvas 800x600
-    const canvas = createCanvas(800, 600);
+    // Canvas 900x600 – più spazio = più bello
+    const canvas = createCanvas(900, 600);
     const ctx = canvas.getContext('2d');
 
-    // Sfondo gradiente
-    const grad = ctx.createLinearGradient(0, 0, 0, 600);
-    grad.addColorStop(0, '#2a2a72');
-    grad.addColorStop(1, '#090979');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 800, 600);
+    // Sfondo gradiente bello
+    const gradient = ctx.createLinearGradient(0, 0, 0, 600);
+    gradient.addColorStop(0, '#1a1a2e');
+    gradient.addColorStop(1, '#16213e');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 900, 600);
 
-    ctx.font = 'bold 42px Sans';
+    // Titolo server
     ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 48px Roboto';
     ctx.textAlign = 'center';
-    ctx.fillText(interaction.guild.name, 400, 60);
+    ctx.fillText(interaction.guild.name.toUpperCase(), 450, 70);
 
-    // Funzione per sezione
-    const drawSection = (title, y, data, type) => {
-      ctx.font = 'bold 32px Sans';
+    ctx.font = '30px Roboto';
+    ctx.fillStyle = '#7289da';
+    ctx.fillText('LEADERBOARD', 450, 110);
+
+    // Funzione per disegnare una sezione
+    const drawSection = async (title, emoji, y, data, isTime = false) => {
       ctx.fillStyle = '#ffd700';
-      ctx.fillText(title, 400, y);
+      ctx.font = 'bold 36px Roboto';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${emoji} ${title}`, 80, y);
 
-      ctx.font = '28px Sans';
-      ctx.fillStyle = '#ffffff';
-      data.forEach(async (entry, i) => {
-        const member = await interaction.guild.members.fetch(entry.id).catch(() => null);
-        const name = member ? member.displayName : 'Utente sconosciuto';
-        const value = type === 'msg' ? entry.count + ' messaggi' : entry.seconds + ' minuti';
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
-        ctx.fillText(`${medal} ${name}`, 400, y + 50 + i * 50);
-        ctx.font = '24px Sans';
-        ctx.fillStyle = '#aaaaaa';
-        ctx.fillText(value, 400, y + 75 + i * 50);
-        ctx.font = '28px Sans';
+      ctx.font = '28px Roboto';
+      for (let i = 0; i < data.length; i++) {
+        const entry = data[i];
+        let name = 'Utente sconosciuto';
+        try {
+          const member = await interaction.guild.members.fetch(entry.id);
+          name = member.displayName.length > 20 ? member.displayName.slice(0, 17) + '...' : member.displayName;
+        } catch { }
+
+        const medal = i === 0 ? 'First' : i === 1 ? 'Second' : 'Third';
+        const value = isTime ? `${entry.value} min` : `${entry.value} msg`;
+
         ctx.fillStyle = '#ffffff';
-      });
+        ctx.fillText(`${medal} ${name}`, 100, y + 60 + i * 60);
+        ctx.fillStyle = '#aaaaaa';
+        ctx.font = '24px Roboto';
+        ctx.fillText(value, 650, y + 60 + i * 60);
+      }
+
+      // Se meno di 3, metti placeholder
+      for (let i = data.length; i < 3; i++) {
+        ctx.fillStyle = '#444444';
+        ctx.font = '26px Roboto';
+        ctx.fillText(i === 0 ? 'First' : i === 1 ? 'Second' : 'Third' + ' —', 100, y + 60 + i * 60);
+      }
     };
 
-    drawSection('📝 Top Messaggi', 120, msgEntries, 'msg');
-    drawSection('🔊 Top Tempo Voce', 320, voiceEntries, 'voice');
+    await drawSection('TOP MESSAGGI', 'Message', 160, topMsg);
+    await drawSection('TOP VOCE', 'Microphone', 360, topVoice, true);
+
+    // Pie piccolo con data
+    ctx.fillStyle = '#666666';
+    ctx.font = '20px Roboto';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Aggiornato il ${new Date().toLocaleDateString('it-IT')}`, 450, 570);
 
     const buffer = canvas.toBuffer('image/png');
     const attachment = new AttachmentBuilder(buffer, { name: 'leaderboard.png' });
+
     await interaction.editReply({ files: [attachment] });
-  }
+  },
 };
