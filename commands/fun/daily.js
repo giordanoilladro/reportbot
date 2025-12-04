@@ -28,14 +28,19 @@ module.exports = {
     let newStreak = streak;
     let message = '';
     let color = '#00ff00';
+    let thumbnail = 'https://cdn.discordapp.com/emojis/1279541430090928169.png'; // Icona soldi Discord
 
     // Già riscattato oggi
     if (lastClaim === today) {
       const embed = new EmbedBuilder()
         .setColor('#ff0000')
-        .setTitle('Hai già riscattato il daily oggi!')
-        .setDescription(`Torna domani per un altro premio!\nStreak attuale: **${streak} giorno${streak === 1 ? '' : 'i'} consecutivi**`)
-        .setThumbnail('https://i.imgur.com/pnQlIzk.png') // il tuo STOP
+        .setTitle('❌ Hai già riscattato il daily oggi!')
+        .setDescription(`Torna domani per mantenere lo streak!\nStreak attuale: **${streak} giorno${streak === 1 ? '' : 'i'} consecutivi**`)
+        .addFields(
+          { name: 'Prossimo daily', value: `<t:${Math.floor((Date.now() + 24*60*60*1000)/1000)}:R>`, inline: true }
+        )
+        .setFooter({ text: 'Mantieni lo streak quotidiano per bonus extra!' })
+        .setTimestamp();
       return interaction.editReply({ embeds: [embed] });
     }
 
@@ -44,17 +49,20 @@ module.exports = {
     const yesterdayStr = yesterday.toDateString();
 
     if (lastClaim === yesterdayStr) {
+      // Streak continua!
       newStreak = streak + 1;
-      reward += newStreak * 20;
-      message = `Streak di **${newStreak} giorno${newStreak === 1 ? '' : 'i'}**!`;
+      reward += newStreak * 30; // Bonus streak migliorato
+      message = `🔥 Streak di **${newStreak} giorno${newStreak === 1 ? '' : 'i'}** consecutivi! Bonus extra attivato!`;
       color = '#00ff00';
     } else if (lastClaim) {
+      // Streak perso
       newStreak = 1;
-      message = 'Streak perso... Ricominciamo da 1!';
+      message = '😔 Streak perso per non aver riscattato ieri... Ricominciamo da 1 con energia!';
       color = '#ffaa00';
     } else {
+      // Primo daily
       newStreak = 1;
-      message = 'Primo daily! Benvenuto!';
+      message = '🎉 Primo daily! Benvenuto nel mondo dei premi quotidiani!';
       color = '#5865F2';
     }
 
@@ -70,14 +78,12 @@ module.exports = {
         iconURL: interaction.user.displayAvatarURL({ size: 256 })
       })
       .setTitle(`${message}`)
-      .setDescription(`Hai ricevuto **${reward.toLocaleString()}** crediti!`)
+      .setDescription(`Hai ricevuto **${reward.toLocaleString()}** crediti! 💰`)
       .addFields(
         { name: 'Streak attuale', value: `**${newStreak}** giorno${newStreak === 1 ? '' : 'i'}`, inline: true },
-        { name: 'Totale daily raccolti', value: `${guildData.daily.get(userId).toLocaleString()}`, inline: true },
+        { name: 'Totale crediti daily', value: `**${guildData.daily.get(userId).toLocaleString()}**`, inline: true },
         { name: 'Prossimo daily', value: `<t:${Math.floor((Date.now() + 24*60*60*1000)/1000)}:R>`, inline: false }
-      )
-      .setThumbnail('https://i.imgur.com/2mP0d2Z.png') // monete dorate perfette (link diretto funzionante)
-      .setFooter({ text: 'Torna domani per mantenere lo streak!' })
+      .setFooter({ text: 'Mantieni lo streak per bonus sempre maggiori!' })
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
