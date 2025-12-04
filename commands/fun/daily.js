@@ -79,11 +79,12 @@ module.exports = {
       })
       .setTitle(`${message}`)
       .setDescription(`Hai ricevuto **${reward.toLocaleString()}** crediti! 💰`)
-      .addFields(
-        { name: 'Streak attuale', value: `**${newStreak}** giorno${newStreak === 1 ? '' : 'i'}`, inline: true },
-        { name: 'Totale crediti daily', value: `**${guildData.daily.get(userId).toLocaleString()}**`, inline: true },
-        { name: 'Prossimo daily', value: `<t:${Math.floor((Date.now() + 24*60*60*1000)/1000)}:R>`, inline: false }
-      .setFooter({ text: 'Mantieni lo streak per bonus sempre maggiori!' })
+.addFields(
+        { name: 'Streak attuale', value: `Fire **${newStreak}** giorno${newStreak === 1 ? '' : 'i'}`, inline: true },
+        { name: 'Totale crediti daily', value: `Gem **${guildData.daily.get(userId).toLocaleString()}**`, inline: true },
+        { name: 'Prossimo daily', value: `Clock <t:${Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000)}:R>`, inline: false }
+      )
+      .setFooter({ text: 'Più giorni consecutivi = più crediti!' })
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
