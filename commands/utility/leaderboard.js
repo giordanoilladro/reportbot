@@ -4,10 +4,10 @@ const Guild = require('../../models/Guild');
 const path = require('path');
 
 // REGISTRA FONT SICURI (funzionano ovunque)
-registerFont(path.join(__dirname, '../../fonts/Roboto-Bold.ttf'), { family: 'Roboto' });
-registerFont(path.join(__dirname, '../../fonts/NotoEmoji-Regular.ttf'), { family: 'Noto Emoji' });
+//registerFont(path.join(__dirname, '../../fonts/Roboto-Bold.ttf'), { family: 'Roboto' });
+//registerFont(path.join(__dirname, '../../fonts/NotoEmoji-Regular.ttf'), { family: 'Noto Emoji' });
 // Se usi Arial come fallback
-registerFont(path.join(__dirname, '../../fonts/Arial.ttf'), { family: 'Arial' });
+//registerFont(path.join(__dirname, '../../fonts/Arial.ttf'), { family: 'Arial' });
 
 module.exports = {
   data: new SlashCommandBuilder()
