@@ -1,4 +1,4 @@
-// commands/utility/leaderboard.js – VERSIONE LEGGIBILE, BELLA E DEFINITIVA
+// commands/utility/leaderboard.js – FUNZIONA DAVVERO SU HAMSTER BOT
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { createCanvas } = require('canvas');
 const Guild = require('../../models/Guild');
@@ -45,8 +45,15 @@ module.exports = {
 
     let y = 80;
 
+    // FONT CHE FUNZIONANO DAVVERO SU TUTTI I SERVER
+    const titleFont  = 'bold 62px sans-serif';
+    const nameFont   = 'bold 48px sans-serif';
+    const valueFont  = 'bold 52px sans-serif';
+    const medalFont  = 'bold 56px sans-serif';
+    const footerFont = 'bold 36px sans-serif';
+
     const drawBox = async (title, emoji, color, data, isChannel) => {
-      // Box con sfondo semi-trasparente
+      // Box
       ctx.fillStyle = 'rgba(15, 10, 40, 0.92)';
       ctx.fillRect(50, y, 1000, 380);
       ctx.strokeStyle = color;
@@ -57,7 +64,7 @@ module.exports = {
       ctx.shadowColor = color;
       ctx.shadowBlur = 20;
       ctx.fillStyle = color;
-      ctx.font = 'bold 62px "DejaVu Sans", sans-serif';
+      ctx.font = titleFont;
       ctx.textAlign = 'center';
       ctx.fillText(`${emoji} ${title}`, 550, y + 80);
       ctx.shadowBlur = 0;
@@ -66,15 +73,15 @@ module.exports = {
         const entry = data[i];
         const lineY = y + 140 + i * 70;
 
-        // Medaglia grande
+        // Medaglia
         const positions = ['1st', '2nd', '3rd', '4th', '5th'];
         const medalColors = ['#ffd700', '#c0c0c0', '#cd7f32', '#ffffff', '#ffffff'];
         ctx.fillStyle = medalColors[i];
-        ctx.font = 'bold 56px "DejaVu Sans", sans-serif';
+        ctx.font = medalFont;
         ctx.textAlign = 'left';
         ctx.fillText(positions[i], 70, lineY);
 
-        // Nome utente/canale – BIANCO FISSO, sempre leggibile
+        // Nome utente/canale
         let name = '—';
         if (entry) {
           if (isChannel) {
@@ -88,21 +95,19 @@ module.exports = {
           }
           name = name.length > 32 ? name.substring(0, 29) + '...' : name;
         }
-
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 48px "DejaVu Sans", sans-serif';
+        ctx.font = nameFont;
         ctx.fillText(name, 180, lineY);
 
-        // Valore grande e colorato
+        // Valore
         let value = '—';
         if (entry) {
-          value = entry.count !== undefined 
+          value = entry.count !== undefined
             ? `${entry.count.toLocaleString()} msg`
             : `${entry.minutes.toLocaleString()} min`;
         }
-
         ctx.fillStyle = color;
-        ctx.font = 'bold 52px "DejaVu Sans", sans-serif';
+        ctx.font = valueFont;
         ctx.textAlign = 'right';
         ctx.fillText(value, 1000, lineY);
         ctx.textAlign = 'left';
@@ -115,9 +120,9 @@ module.exports = {
     await drawBox('TOP TEMPO IN VOCE', 'Microphone', '#20e6b8', topVoiceUsers, false);
     await drawBox('CANALI VOCE PIÙ USATI', 'Speaker', '#ffb400', topVoiceChannels, true);
 
-    // Footer bello
+    // Footer
     ctx.fillStyle = '#e0e0ff';
-    ctx.font = 'bold 36px "DejaVu Sans", sans-serif';
+    ctx.font = footerFont;
     ctx.textAlign = 'center';
     ctx.fillText(`${interaction.guild.name} • ${interaction.guild.memberCount.toLocaleString()} membri • ${new Date().toLocaleDateString('it-IT')}`, 550, y + 60);
 
