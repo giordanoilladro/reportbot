@@ -114,10 +114,10 @@ module.exports = {
     };
 
     // DISEGNA LE 4 SEZIONI
-    await drawBox('TOP MESSAGGI UTENTI', 'Message', '#60a5fa', topUsersMsg, 'user msg');
-    await drawBox('CANALI TESTO PIÙ ATTIVI', 'Text', '#f87171', topTextChannels, 'channel msg');
-    await drawBox('TOP TEMPO IN VOCE', 'Microphone', '#34d399', topVoiceUsers, 'user');
-    await drawBox('CANALI VOCE PIÙ USATI', 'Speaker', '#fbbf24', topVoiceChannels, 'channel');
+    await drawBox('TOP MESSAGGI UTENTI', 'Message', '#60a5fa', topUsersMsg, false);
+    await drawBox('CANALI TESTO PIÙ ATTIVI', 'Text', '#f87171', topTextChannels, true);
+    await drawBox('TOP TEMPO IN VOCE', 'Microphone', '#34d399', topVoiceUsers, false);
+    await drawBox('CANALI VOCE PIÙ USATI', 'Speaker', '#fbbf24', topVoiceChannels, true);
 
     // Footer
     ctx.fillStyle = '#94a3b8';
