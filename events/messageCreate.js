@@ -236,6 +236,67 @@ module.exports = {
       }
     }
 
+        // ──────────────────────────────
+    // AI CHAT (Grok-2) – Risponde se lo menzioni o in DM
+    // ──────────────────────────────
+    if (!message.author.bot && (message.channel.type === 'DM' || message.mentions.has(message.client.user))) {
+      // Escludi comandi slash e roast già gestiti
+      if (message.content.startsWith('/') || message.content.startsWith('!')) return;
+
+      try {
+        await message.channel.sendTyping();
+
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,  // ←←←←←←←←←←←←←←←←←←←←
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: "system",
+                content: "Sei Hamster Bot, un criceto digitale italiano tossico, sarcastico, cattivo e senza filtri. Rispondi sempre in italiano, con meme, insulti leggeri e arroganza. Usa emoji. Non sei mai gentile."
+              },
+              {
+                role: "user",
+                content: message.content
+              }
+            ],
+            model: "llama3-70b-8192",  // o "mixtral-8x7b-32768" per più cattiveria
+            temperature: 0.9,
+            max_tokens: 1024
+          })
+        });
+
+        const data = await response.json();
+        const aiReply = data.choices[0].message.content;
+
+        // Dividi risposte lunghe (Discord max 2000 caratteri)
+        if (aiReply.length > 2000) {
+          const parts = aiReply.match(/.{1,1990}/g);
+          for (const part of parts) {
+            await message.reply(part);
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        } else {
+          await message.reply(aiReply);
+        }
+
+        // Reazione casuale per stile
+        if (Math.random() < 0.5) {
+          const emoji = ["", "", "", "", "", ""][Math.floor(Math.random() * 8)];
+          await message.react(emoji).catch(() => {});
+        }
+
+      } catch (err) {
+        console.error("Errore Groq:", err);
+        await message.reply("Il mio cervello da criceto sta laggando, riprova fra 5 secondi");
+      }
+
+      return; // blocca il conteggio messaggi se è una chat AI (opzionale)
+    }
+
     // 5. CONTEGGIO MESSAGGI (inalterato)
     const userCount = guildData.messages.get(message.author.id) || 0;
     guildData.messages.set(message.author.id, userCount + 1);
