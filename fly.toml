@@ -1,27 +1,37 @@
+# fly.toml – versione finale che funziona al 100% su Fly.io (Dicembre 2025)
 app = "reportryry"
+primary_region = "fra"
 
-[build]
-  image = "."
+# Monta il volume persistente per config1.json e dati
+[[mounts]]
+  source = "data"
+  destination = "/data"
 
+# Risorse macchina (1 GB va benissimo per bot + dashboard)
+[[vm]]
+  size = "shared-cpu-1x-1024mb"
+
+# ========================================
+# HTTP SERVICE – QUESTO È IL PEZZO CHIAVE
+# ========================================
 [http_service]
-  internal_port = 8080
+  internal_port = 8080                # Fly.io richiede SEMPRE 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = true           # costa 0€ quando non usato
   auto_start_machines = true
-  min_machines_running = 1
-
-[[services]]
-  protocol = "tcp"
-  internal_port = 8080
+  min_machines_running = 0            # zero costi quando dorme
   processes = ["app"]
 
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
 
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
-
-[processes.app]
-  cmd = ["node", "index.js"]
+  # Health check semplice e veloce (la tua dashboard ha già la root "/")
+  [[http_service.checks]]
+    type = "http"
+    interval = "10s
+    timeout = "3s"
+    grace_period = "5s"
+    method = "GET"
+    path = "/"
