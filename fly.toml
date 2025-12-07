@@ -1,43 +1,27 @@
-# fly.toml – versione definitiva 2025 per bot Discord + sito web
 app = "reportryry"
-primary_region = "fra"
 
 [build]
-  # Se usi Dockerfile non serve niente qui
-  # Se costruisci con fly builder, lascia solo questa riga:
-  # builder = "paketobuildpacks/builder:base"
+  image = "."
 
-[[mounts]]
-  source = "data"
-  destination = "/data"
-  auto_extend_size_threshold = 80
-  auto_extend_size_increment = "1GB"
-  auto_extend_size_limit = "10GB"
-
-# HTTP SERVICE – la parte più importante
 [http_service]
-  internal_port = 3000
+  internal_port = 8080
   force_https = true
-  auto_stop_machines = true          # spegne la macchina quando non serve
+  auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 0           # ← fondamentale! costa 0€ quando è spenta
+  min_machines_running = 1
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
   processes = ["app"]
 
-  # Health check espliciti = avvio più veloce e zero errori
-  [http_service.concurrency]
-    type = "requests"
-    soft_limit = 100
-    hard_limit = 120
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
 
-  [[http_service.checks]]
-    grace_period = "10s"
-    interval = "15s"
-    method = "GET"
-    path = "/health"
-    timeout = "5s"
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
 
-# Risorse macchina (1 GB è più che sufficiente per bot + sito)
-[[vm]]
-  memory = "1gb"
-  cpu_kind = "shared"
-  cpus = 1
+[processes.app]
+  cmd = ["node", "index.js"]
