@@ -5,7 +5,6 @@ const fetch = require('node-fetch');
 const path = require('path');
 const mongoose = require('mongoose');
 const GuildSettings = require('../models/GuildSettings');
-
 const app = express();
 
 // === CORS ===
@@ -18,7 +17,8 @@ app.use(cors({
 }));
 
 // === CONFIG ===
-const PORT = process.env.PORT || 3000;
+// MODIFICA PRINCIPALE: Fly.io richiede la porta 8080
+const PORT = process.env.PORT || 8080;  // era 3000 → ora 8080
 const HOST = '0.0.0.0';
 const BASE_URL = 'https://hamsterhouse.it';
 
@@ -37,7 +37,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // === SESSIONE STABILE SU FLY.IO ===
 app.set('trust proxy', 1);
-
 let sessionConfig = {
   secret: process.env.SESSION_SECRET || '9c78140c35df616184db69473b2272bf',
   name: 'hamster.sid',
@@ -51,33 +50,33 @@ let sessionConfig = {
   }
 };
 
+// SESSIONI PERSISTENTI (sbloccato, così non perdi il login al restart)
 if (process.env.MONGO_URI) {
   const MongoStore = require('connect-mongo');
-
- // sessionConfig.store = MongoStore.create({
- // mongoUrl: process.env.MONGO_URI,
- // ttl: 24 * 60 * 60,
- // autoRemove: 'native'
-//}); 
+  sessionConfig.store = MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    ttl: 24 * 60 * 60,
+    autoRemove: 'native'
+  });
 }
 
 app.use(session(sessionConfig));
 
-// === VIEW ENGINE (OBBLIGATORIO PRIMA DELLE ROTTE!) ===
+// === VIEW ENGINE ===
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// === REDIRECT LOCALHOST ===
+// === REDIRECT LOCALHOST (commentato come prima) ===
 //app.use((req, res, next) => {
 //  const host = req.headers.host || '';
 //  if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0')) {
-//   return res.redirect(301, BASE_URL + req.originalUrl);
+//    return res.redirect(301, BASE_URL + req.originalUrl);
 //  }
 //  next();
 //});
 
 // ===================================
-// ROTTE STATICHE (PRIMA DI express.static!)
+// ROTTE STATICHE
 // ===================================
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/pages/home.html')));
 
@@ -91,7 +90,6 @@ app.get('/login', (req, res) => {
   const url = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
   res.redirect(url);
 });
-
 
 app.get('/auth/callback', async (req, res) => {
   const { code } = req.query;
@@ -125,9 +123,8 @@ app.get('/auth/callback', async (req, res) => {
     const guilds = await guildsResponse.json();
 
     req.session.user = user;
-    req.session.guilds = guilds.filter(g => (BigInt(g.permissions) & 8n) === 8n); // solo admin
+    req.session.guilds = guilds.filter(g => (BigInt(g.permissions) & 8n) === 8n);
     req.session.save(() => res.redirect('/dashboard'));
-
   } catch (err) {
     console.error('Errore OAuth callback:', err);
     res.status(500).send('Login fallito. Riprova.');
@@ -141,7 +138,7 @@ const requireAuth = (req, res, next) => {
 };
 
 // ===================================
-// DASHBOARD – ROTTE PRINCIPALI (DEVONO VENIRE PRIMA DI express.static!)
+// DASHBOARD – ROTTE PRINCIPALI
 // ===================================
 app.get('/dashboard', requireAuth, (req, res) => {
   res.render('dashboard', {
@@ -170,14 +167,11 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
       const guildRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}`, {
         headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` }
       });
-
       if (guildRes.ok) {
         const guildData = await guildRes.json();
-
         const channelsRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
           headers: { Authorization: `Bot ${process.env.DISCORD_TOKEN}` }
         });
-
         if (channelsRes.ok) {
           const allChannels = await channelsRes.json();
           channels = allChannels
@@ -185,7 +179,6 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
             .sort((a, b) => a.position - b.position)
             .map(c => ({ id: c.id, name: c.name }));
         }
-
         roles = guildData.roles
           .sort((a, b) => b.position - a.position)
           .map(r => ({ id: r.id, name: r.name }));
@@ -209,18 +202,14 @@ app.get('/guild/:id', requireAuth, async (req, res) => {
 });
 
 // === SALVA CONFIGURAZIONE ===
-// === SALVA CONFIGURAZIONE – VERSIONE CHE FUNZIONA DAVVERO (testata ora) ===
 app.post('/guild/:id/save', requireAuth, async (req, res) => {
   const guildId = req.params.id;
-
   if (!req.session.guilds?.some(g => g.id === guildId)) {
     return res.json({ success: false, error: 'No permessi' });
   }
 
   try {
     const body = req.body;
-
-    // RICOSTRUISCI L'ARRAY RUOLI (fix definitivo)
     const roles = [];
     const temp = {};
 
@@ -244,11 +233,9 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
       }
     });
 
-    // Forza la struttura pulita
     body.reactionroles = body.reactionroles || {};
     body.reactionroles.roles = roles;
 
-    // Salva
     await GuildSettings.findOneAndUpdate(
       { guildId },
       { $set: body },
@@ -256,12 +243,12 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
     );
 
     res.json({ success: true, message: 'Salvataggio completato!' });
-
   } catch (err) {
     console.error('ERRORE SAVE:', err);
     res.json({ success: false, error: err.message });
   }
 });
+
 // === INVIO REACTION ROLE ===
 app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
   const guildId = req.params.id;
@@ -277,7 +264,6 @@ app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
     }
 
     const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-
     const embed = new EmbedBuilder()
       .setTitle(config.title || 'Scegli i tuoi ruoli!')
       .setDescription(config.description || 'Clicca sui pulsanti per ottenere i ruoli!')
@@ -285,7 +271,6 @@ app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
 
     const rows = [];
     let row = new ActionRowBuilder();
-
     config.roles.forEach((r, i) => {
       if (i % 5 === 0 && i !== 0) { rows.push(row); row = new ActionRowBuilder(); }
       row.addComponents(
@@ -313,7 +298,6 @@ app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
     }
 
     const message = await channelRes.json();
-
     await GuildSettings.updateOne(
       { guildId },
       { $set: { 'reactionroles.messageId': message.id } }
@@ -324,17 +308,16 @@ app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
       messageId: message.id,
       url: `https://discord.com/channels/${guildId}/${config.channelId}/${message.id}`
     });
-
   } catch (err) {
     console.error('Errore invio reaction role:', err);
     res.json({ success: false, error: err.message });
   }
 });
 
-// === ORA express.static (dopo tutte le rotte dinamiche!) ===
+// === STATIC FILES ===
 app.use(express.static(path.join(__dirname, 'public')));
 
-// === 404 finale (sempre per ultimo!) ===
+// === 404 ===
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public/pages/404.html'));
 });
@@ -342,6 +325,7 @@ app.use((req, res) => {
 // === AVVIO SERVER ===
 app.listen(PORT, HOST, () => {
   console.log('DASHBOARD ONLINE');
-  console.log(`APRI → ${BASE_URL}`);
+  console.log(`Ascolto sulla porta ${PORT} (Fly.io richiede 8080)`);
+  console.log(`Apri → ${BASE_URL}`);
   console.log(`Login → ${BASE_URL}/login`);
 });
