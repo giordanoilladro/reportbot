@@ -94,23 +94,9 @@ new cron.CronJob('0 */6 * * *', () => {
 // ===================================
 // DASHBOARD + BOT SULLO STESSO PORT (GENIO)
 // ===================================
-let dashboardProcess = null;
-
-if (process.env.DASHBOARD_ENABLED === 'true') {
-  console.log('Avvio dashboard integrata...');
-  dashboardProcess = spawn('node', ['dashboard/server.js'], {
-    stdio: 'inherit',
-    shell: true,
-    detached: true,
-    env: { ...process.env, PORT: 8080 } // FORZA IL PORT CORRETTO
-  });
-
-  dashboardProcess.unref();
-
-  dashboardProcess.on('error', (err) => {
-    console.error('Errore dashboard:', err);
-  });
-}
+// DASHBOARD NELLO STESSO PROCESSO → funziona sempre su Fly.io
+require('./dashboard/server.js');
+console.log('Dashboard avviata correttamente sulla porta 8080');
 
 // === READY + URL CORRETTO PER SEMPRE ===
 client.once('ready', () => {
