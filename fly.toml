@@ -7,7 +7,7 @@ primary_region = "fra"
   destination = "/data"
 
 [[vm]]
-  size = "shared-cpu-1x-1024mb"
+  size = "shared-cpu-1x"
 
 [http_service]
   internal_port = 8080
