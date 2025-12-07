@@ -102,7 +102,7 @@ if (process.env.DASHBOARD_ENABLED === 'true') {
     stdio: 'inherit',
     shell: true,
     detached: true,
-    env: { ...process.env, PORT: process.env.PORT || 8080 } // FORZA IL PORT CORRETTO
+    env: { ...process.env, PORT: 8080 } // FORZA IL PORT CORRETTO
   });
 
   dashboardProcess.unref();
