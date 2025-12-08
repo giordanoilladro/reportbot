@@ -10,34 +10,36 @@ const app = express();
 // === CORS ===
 const cors = require('cors');
 app.use(cors({
-  origin: ['https://hamsterhouse.it', 'http://hamsterhouse.it'],
+  origin: ['https://hamsterhouse.it', 'http://hamsterhouse.it', 'https://reportryry.fly.dev'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// === CONFIG ===
-// MODIFICA PRINCIPALE: Fly.io richiede la porta 8080
-const PORT = process.env.PORT || 8080;  // era 3000 → ora 8080
+// === CONFIG FLY.IO ===
+const PORT = process.env.PORT || 8080;
 const HOST = '0.0.0.0';
-const BASE_URL = 'https://hamsterhouse.it';
+const BASE_URL = process.env.BASE_URL || 'https://reportryry.fly.dev';
 
 // === MONGO ===
 if (process.env.MONGO_URI) {
-  mongoose.connect(process.env.MONGO_URI)
+  mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
     .then(() => console.log('MongoDB connesso'))
     .catch(err => console.error('MongoDB errore:', err));
 } else {
-  console.warn('MONGO_URI mancante → DB disabilitato');
+  console.warn('MONGO_URI mancante → alcune funzioni disabilitate');
 }
 
-// === MIDDLEWARE BASE ===
+// === MIDDLEWARE ===
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// === SESSIONE STABILE SU FLY.IO ===
 app.set('trust proxy', 1);
-let sessionConfig = {
+
+// === SESSIONE – FIXATO per connect-mongo v5+ ===
+const sessionConfig = {
   secret: process.env.SESSION_SECRET || '9c78140c35df616184db69473b2272bf',
   name: 'hamster.sid',
   resave: false,
@@ -50,14 +52,15 @@ let sessionConfig = {
   }
 };
 
-// SESSIONI PERSISTENTI (sbloccato, così non perdi il login al restart)
 if (process.env.MONGO_URI) {
-  const MongoStore = require('connect-mongo');
+  const { MongoStore } = require('connect-mongo');
   sessionConfig.store = MongoStore.create({
     mongoUrl: process.env.MONGO_URI,
+    collectionName: 'sessions',
     ttl: 24 * 60 * 60,
     autoRemove: 'native'
   });
+  console.log('Sessioni salvate su MongoDB (persistenti)');
 }
 
 app.use(session(sessionConfig));
@@ -66,28 +69,16 @@ app.use(session(sessionConfig));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// === REDIRECT LOCALHOST (commentato come prima) ===
-//app.use((req, res, next) => {
-//  const host = req.headers.host || '';
-//  if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0')) {
-//    return res.redirect(301, BASE_URL + req.originalUrl);
-//  }
-//  next();
-//});
-
-// ===================================
-// ROTTE STATICHE
-// ===================================
+// === ROTTE STATICHE ===
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/pages/home.html')));
-
-const staticPages = ['collabora', 'termini', 'privacy', 'home'].map(p => ({ route: `/${p}`, file: `${p}.html` }));
-staticPages.forEach(page => {
-  app.get(page.route, (req, res) => res.sendFile(path.join(__dirname, 'public/pages', page.file)));
+['collabora', 'termini', 'privacy', 'home'].forEach(p => {
+  app.get(`/${p}`, (req, res) => res.sendFile(path.join(__dirname, 'public/pages', `${p}.html`)));
 });
 
 // === OAUTH2 ===
 app.get('/login', (req, res) => {
-  const url = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
+  const redirect = process.env.REDIRECT_URI || `${BASE_URL}/auth/callback`;
+  const url = `https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=identify%20guilds`;
   res.redirect(url);
 });
 
@@ -96,14 +87,15 @@ app.get('/auth/callback', async (req, res) => {
   if (!code) return res.status(400).send('Errore: nessun codice ricevuto da Discord');
 
   try {
+    const redirect = process.env.REDIRECT_URI || `${BASE_URL}/auth/callback`;
     const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
       body: new URLSearchParams({
         client_id: process.env.CLIENT_ID,
         client_secret: process.env.CLIENT_SECRET,
         grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: process.env.REDIRECT_URI || 'https://hamsterhouse.it/auth/callback',
+        code,
+        redirect_uri: redirect,
         scope: 'identify guilds',
       }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -112,15 +104,13 @@ app.get('/auth/callback', async (req, res) => {
     const tokens = await tokenResponse.json();
     if (tokens.error) throw new Error(tokens.error_description || tokens.error);
 
-    const userResponse = await fetch('https://discord.com/api/users/@me', {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    });
-    const user = await userResponse.json();
+    const [userRes, guildsRes] = await Promise.all([
+      fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${tokens.access_token}` } }),
+      fetch('https://discord.com/api/users/@me/guilds', { headers: { Authorization: `Bearer ${tokens.access_token}` } })
+    ]);
 
-    const guildsResponse = await fetch('https://discord.com/api/users/@me/guilds', {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    });
-    const guilds = await guildsResponse.json();
+    const user = await userRes.json();
+    const guilds = await guildsRes.json();
 
     req.session.user = user;
     req.session.guilds = guilds.filter(g => (BigInt(g.permissions) & 8n) === 8n);
@@ -137,9 +127,7 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-// ===================================
-// DASHBOARD – ROTTE PRINCIPALI
-// ===================================
+// === DASHBOARD ===
 app.get('/dashboard', requireAuth, (req, res) => {
   res.render('dashboard', {
     user: req.session.user,
@@ -151,6 +139,7 @@ app.get('/dashboard', requireAuth, (req, res) => {
   });
 });
 
+// === GUILD DASHBOARD ===
 app.get('/guild/:id', requireAuth, async (req, res) => {
   const guildId = req.params.id;
   if (!req.session.guilds?.some(g => g.id === guildId)) return res.status(403).send('Accesso negato.');
@@ -249,7 +238,7 @@ app.post('/guild/:id/save', requireAuth, async (req, res) => {
   }
 });
 
-// === INVIO REACTION ROLE ===
+// === INVIO REACTION ROLE MESSAGE ===
 app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
   const guildId = req.params.id;
   if (!req.session.guilds?.some(g => g.id === guildId))
@@ -314,18 +303,16 @@ app.post('/guild/:id/reactionrole/send', requireAuth, async (req, res) => {
   }
 });
 
-// === STATIC FILES ===
+// === STATIC FILES + 404 ===
 app.use(express.static(path.join(__dirname, 'public')));
-
-// === 404 ===
 app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public/pages/404.html'));
 });
 
 // === AVVIO SERVER ===
 app.listen(PORT, HOST, () => {
-  console.log('DASHBOARD ONLINE');
-  console.log(`Ascolto sulla porta ${PORT} (Fly.io richiede 8080)`);
+  console.log('DASHBOARD ONLINE su Fly.io');
+  console.log(`Ascolto su ${HOST}:${PORT}`);
   console.log(`Apri → ${BASE_URL}`);
   console.log(`Login → ${BASE_URL}/login`);
 });
