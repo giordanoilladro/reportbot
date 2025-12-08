@@ -1,31 +1,22 @@
-# fly.toml – VERSIONE FINALE CHE FUNZIONA (Dicembre 2025)
-app = "reportryry"
-primary_region = "fra"
+# fly.toml app configuration file generated for reportryry on 2025-12-08T20:29:24+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-[[mounts]]
-  source = "data"
-  destination = "/data"
+app = 'reportryry'
+primary_region = 'cdg'
 
-[[vm]]
-  size = "shared-cpu-1x"
+[build]
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
+  processes = ['app']
 
-  [http_service.concurrency]
-    type = "requests"
-    soft_limit = 200
-    hard_limit = 250
-
-  [[http_service.checks]]
-    type = "http"
-    interval = "10s"
-    timeout = "3s"
-    grace_period = "5s"
-    method = "GET"
-    path = "/"
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
