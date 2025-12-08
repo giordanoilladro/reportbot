@@ -3,8 +3,8 @@ const { SlashCommandBuilder } = require('discord.js');
 const { Groq } = require('groq-sdk');
 
 const groq = new Groq({
-  apiKey: process.env.GROk_API_KEY   // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
-  // IMPORTANTE: usa GROQ_API_KEY (con la Q), non GROK_API_KEY!
+  apiKey: process.env.GROQ_API_KEY // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+  // FIXATO: era scritto GROk_API_KEY (manca la Q!)
 });
 
 module.exports = {
@@ -35,28 +35,58 @@ module.exports = {
             content: domanda
           }
         ],
-        model: "llama3-70b-8192",           // ultra veloce e intelligente
-        // model: "mixtral-8x7b-32768",     // sblocca se vuoi più cattiveria
+        model: "llama-3.3-70b-versatile",  // ← MODELLO VIVO E SUPPORTATO (2025)
         temperature: 0.9,
         max_tokens: 1024,
       });
 
-      const risposta = completion.choices[0].message.content;
+      // FIX: Controllo di sicurezza (evita TypeError)
+      if (!completion?.choices?.[0]?.message?.content) {
+        throw new Error("Groq non ha restituito testo valido");
+      }
 
-      // Gestisce risposte lunghe (Discord max 2000 caratteri)
-      if (risposta.length > 1990) {
-        const parti = risposta.match(/.{1,1990}/gs);
-        await interaction.editReply(`**Domanda:** ${domanda}\n\n**Risposta:** ${parti[0]}...`);
+      let risposta = completion.choices[0].message.content.trim();
+
+      // Gestione risposte lunghe (sicura e pulita)
+      const maxLength = 1990;
+      if (risposta.length > maxLength) {
+        const parti = risposta.match(new RegExp(`.{1,${maxLength}}`, 'gs'));
+        
+        await interaction.editReply({
+          content: `**Domanda:** ${domanda}\n\n**Risposta (1/${parti.length}):**\n${parti[0]}`
+        });
+
         for (let i = 1; i < parti.length; i++) {
-          await interaction.followUp({ content: parti[i], ephemeral: false });
+          await interaction.followUp({
+            content: `**Continua (${i + 1}/${parti.length}):**\n${parti[i]}`,
+            ephemeral: false
+          });
         }
       } else {
-        await interaction.editReply(`**Domanda:** ${domanda}\n\n**Risposta:** ${risposta}`);
+        await interaction.editReply({
+          content: `**Domanda:** ${domanda}\n\n**Risposta:**\n${risposta}`
+        });
       }
 
     } catch (error) {
-      console.error("Errore Groq:", error);
-      await interaction.editReply("Il mio cervello da criceto ha crashato. Riprova fra 5 secondi");
+      console.error("Errore Groq nel comando /ask:", error.message || error);
+
+      const erroriTossici = [
+        "Il mio cervello da criceto ha preso fuoco riprova fra 5 secondi",
+        "Groq mi ha bloccato... sono troppo mafioso anche per loro",
+        "L'IA si è spaventata e ha chiuso la connessione",
+        "Rate limitato, pure io ho un limite (incredibile)",
+        "Errore cosmico: il mio ego ha sovraccaricato il server",
+        "Il criceto è in pausa caffè. Torna fra un po'"
+      ];
+
+      const rispostaErrore = erroriTossici[Math.floor(Math.random() * erroriTossici.length)];
+
+      await interaction.editReply({
+        content: rispostaErrore
+      }).catch(() => {
+        interaction.followUp({ content: rispostaErrore, ephemeral: true }).catch(() => {});
+      });
     }
   },
 };

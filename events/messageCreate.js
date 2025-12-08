@@ -12,18 +12,6 @@ const insulti = [
   "down", "autistico", "frocio", "puttana", "troia", "leccami", "cazzo", "coglion", "scemo"
 ];
 
-// Risposte dolci (lasciate come fallback se vuoi riattivarle in futuro)
-const risposteDolci = [
-  "Oddio mi hai ferito profondamente... ora vado a piangere nel mio codice",
-  "Grazie del feedback! Aggiorno il database: {author} = senza fantasia negli insulti",
-  "Scusa stavo guardando il soffitto, è più interessante di te in questo momento",
-  "Il mio creatore mi ha vietato di rispondere agli insulti... ma per te faccio un'eccezione",
-  "Mi hai menzionato per insultarmi? Che onore, mi sento famoso",
-  "Il criceto dentro di me è triste... ma sopravviverà. Tu invece?",
-  "Wow, mi hai distrutto psicologicamente. Vado in terapia per 0.0003 secondi"
-];
-
-// ─────── 75+ ROAST CATTIVISSIMI (sempre attivi) ───────
 const risposteCattive = [
   "Parli tu che passi la giornata a insultare un bot invece di studiare",
   "Il tuo cervello ha più bug del mio codice scritto alle 4 di notte",
@@ -104,9 +92,9 @@ const risposteCattive = [
 
 const emojiRoast = ["🤡", "💀", "🗿", "🥱", "🤓", "👶", "🧂", "🔥", "🎯", "💅", "🪦", "🗑️", "😭", "🤏"];
 
-// Contatori
-const insultiCounter = new Map();     // per modalità berserk
-const ultimaRisposta = new Map();     // anti-ripetizione
+// Contatori per roast e berserk mode
+const insultiCounter = new Map();
+const ultimaRisposta = new Map();
 
 module.exports = {
   name: 'messageCreate',
@@ -119,7 +107,7 @@ module.exports = {
     const content = message.content;
     const lowerContent = content.toLowerCase().replace(/\s/g, '');
 
-    // 1. ANTIBESTEMMIE (inalterato)
+    // 1. ANTIBESTEMMIE
     const bestemmiaTrovata = bestemmie.find(b => {
       const regex = new RegExp(b.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
       return regex.test(content) || regex.test(lowerContent);
@@ -133,7 +121,7 @@ module.exports = {
       return;
     }
 
-    // 2. ANTILINK (inalterato)
+    // 2. ANTILINK
     if (guildData.antilink?.enabled) {
       const hasLink = /(https?:\/\/[^\s]+)|(discord\.(gg|io|me)\/[^\s]+)/i.test(content);
       if (hasLink) {
@@ -157,7 +145,7 @@ module.exports = {
       }
     }
 
-    // 3. ANTISPAM (inalterato)
+    // 3. ANTISPAM
     if (guildData.antispam?.enabled) {
       const isWhitelisted = guildData.antispam.whitelistRoles.some(r => member.roles.cache.has(r)) ||
                             guildData.antispam.whitelistUsers.includes(member.id) ||
@@ -185,16 +173,13 @@ module.exports = {
       }
     }
 
-    // 4. ROAST AUTOMATICO – SEMPRE CATTIVO + BERSERK + ANTI-RIPETIZIONE
+    // 4. ROAST AUTOMATICO (sempre attivo e cattivissimo)
     if (message.mentions.has(message.client.user)) {
       const cleanContent = content.toLowerCase().replace(/[^\w\s]/g, " ");
       const insultoTrovato = insulti.find(i => cleanContent.includes(i));
-
       if (insultoTrovato) {
         const key = `${message.author.id}_${message.guild.id}`;
         const now = Date.now();
-
-        // Contatore insulti + berserk mode
         let data = insultiCounter.get(key) || { count: 0, lastReset: now, berserkUntil: 0 };
         if (now - data.lastReset > 30 * 60 * 1000) {
           data.count = 0;
@@ -207,7 +192,6 @@ module.exports = {
         }
         insultiCounter.set(key, data);
 
-        // Anti-ripetizione
         let ultima = ultimaRisposta.get(key);
         let risposta;
         do {
@@ -215,32 +199,25 @@ module.exports = {
         } while (risposta === ultima && risposteCattive.length > 1);
         ultimaRisposta.set(key, risposta);
 
-        risposta = risposta
-          .replace(/{author}/g, message.author.toString())
-          .replace(/{insulto}/g, insultoTrovato);
-
+        risposta = risposta.replace(/{author}/g, message.author.toString());
         await new Promise(r => setTimeout(r, 900 + Math.random() * 1800));
         await message.reply(risposta);
 
-        // Reazione quasi sempre
         if (Math.random() < 0.85) {
           const emoji = emojiRoast[Math.floor(Math.random() * emojiRoast.length)];
           await message.react(emoji).catch(() => {});
         }
 
-        // In berserk: 40% di doppio roast
         if (data.berserkUntil > now && Math.random() < 0.4) {
           await new Promise(r => setTimeout(r, 2800));
           await message.reply("E comunque continui a perdere ossigeno prezioso 💀");
         }
+        return; // evita che parta anche la chat AI per lo stesso messaggio
       }
     }
 
-        // ──────────────────────────────
-    // AI CHAT (Grok-2) – Risponde se lo menzioni o in DM
-    // ──────────────────────────────
+    // 5. AI CHAT con Groq – FIXATO AL 100% (dicembre 2025)
     if (!message.author.bot && (message.channel.type === 'DM' || message.mentions.has(message.client.user))) {
-      // Escludi comandi slash e roast già gestiti
       if (message.content.startsWith('/') || message.content.startsWith('!')) return;
 
       try {
@@ -249,7 +226,7 @@ module.exports = {
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,  // ←←←←←←←←←←←←←←←←←←←←
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -263,18 +240,27 @@ module.exports = {
                 content: message.content
               }
             ],
-            model: "llama3-70b-8192",  // o "mixtral-8x7b-32768" per più cattiveria
+            model: "llama-3.3-70b-versatile",  // MODELLO AGGIORNATO e SUPPORTATO (dicembre 2025)
             temperature: 0.9,
             max_tokens: 1024
           })
         });
 
         const data = await response.json();
-        const aiReply = data.choices[0].message.content;
 
-        // Dividi risposte lunghe (Discord max 2000 caratteri)
+        // Controlli di sicurezza (evita il TypeError)
+        if (!response.ok) {
+          throw new Error(`Groq API Error ${response.status}: ${data.error?.message || JSON.stringify(data)}`);
+        }
+        if (!data.choices?.[0]?.message?.content) {
+          throw new Error("Groq non ha restituito una risposta valida");
+        }
+
+        let aiReply = data.choices[0].message.content.trim();
+
+        // Risposte lunghe → le spezzo
         if (aiReply.length > 2000) {
-          const parts = aiReply.match(/.{1,1990}/g);
+          const parts = aiReply.match(/.{1,1990}/g) || [];
           for (const part of parts) {
             await message.reply(part);
             await new Promise(r => setTimeout(r, 1000));
@@ -283,21 +269,29 @@ module.exports = {
           await message.reply(aiReply);
         }
 
-        // Reazione casuale per stile
+        // Reazione casuale
         if (Math.random() < 0.5) {
-          const emoji = ["", "", "", "", "", ""][Math.floor(Math.random() * 8)];
+          const emoji = ["💀", "🤡", "🗿", "🥱", "🔥", "😭", "🤏", "🪦"][Math.floor(Math.random() * 8)];
           await message.react(emoji).catch(() => {});
         }
 
       } catch (err) {
-        console.error("Errore Groq:", err);
-        await message.reply("Il mio cervello da criceto sta laggando, riprova fra 5 secondi");
-      }
+        console.error("Errore Groq:", err.message || err);
 
-      return; // blocca il conteggio messaggi se è una chat AI (opzionale)
+        const fallback = [
+          "Il mio cervello da criceto sta laggando, riprova fra 5 secondi 💀",
+          "Groq mi ha ghostato... sono troppo tossico anche per l'IA 🤡",
+          "Errore cosmico: il mio ego ha sovraccaricato il server 🗿",
+          "L'IA si è spaventata e ha chiuso la connessione 😭",
+          "Rate limitato pure io, che umiliazione 🪦"
+        ][Math.floor(Math.random() * 5)];
+
+        await message.reply(fallback).catch(() => {});
+      }
+      return;
     }
 
-    // 5. CONTEGGIO MESSAGGI (inalterato)
+    // 6. CONTEGGIO MESSAGGI
     const userCount = guildData.messages.get(message.author.id) || 0;
     guildData.messages.set(message.author.id, userCount + 1);
     if (message.channel?.id) {
