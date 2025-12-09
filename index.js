@@ -1,10 +1,14 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, ActivityType } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  Collection,
+  ActivityType,
+} = require('discord.js');
 const mongoose = require('mongoose');
 const fs = require('fs-extra');
 const path = require('path');
 const cron = require('cron');
-const { spawn } = require('child_process');
 
 const client = new Client({
   intents: [
@@ -17,50 +21,55 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// === CARICA CONFIG ===
+// === CONFIG BOT ===
 let statusConfig;
 try {
   statusConfig = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
   console.log('config.json caricato');
 } catch (err) {
-  console.warn('config.json non trovato. Status disattivato.');
+  console.warn('config.json non trovato → status disattivato');
   statusConfig = null;
 }
 
 let serverConfig;
-const config1Path = '/data/config1.json'; // ← STESSO PERCORSO DELLA DASHBOARD
+const config1Path = '/data/config1.json';
 
 try {
   serverConfig = JSON.parse(fs.readFileSync(config1Path, 'utf8'));
   console.log('config1.json caricato da /data');
 } catch (err) {
-  console.warn('config1.json non trovato in /data. Creo uno vuoto...');
-  serverConfig = {}; // ← STRUTTURA SENZA "guilds"
+  console.warn('config1.json non trovato → ne creo uno vuoto in /data');
+  serverConfig = {};
   fs.writeFileSync(config1Path, JSON.stringify(serverConfig, null, 2));
 }
 
 client.serverConfig = serverConfig;
 client.config1Path = config1Path;
 
-// Carica comandi
+// === CARICA COMANDI ===
 const loadCommands = (dir) => {
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.js'));
   for (const file of files) {
-    const cmd = require(path.join(dir, file));
-    client.commands.set(cmd.data.name, cmd);
+    const fullPath = path.join(dir, file);
+    delete require.cache[require.resolve(fullPath)]; // per il reload
+    const command = require(fullPath);
+    client.commands.set(command.data.name, command);
   }
-  const subdirs = fs.readdirSync(dir).filter(f => fs.statSync(path.join(dir, f)).isDirectory());
-  for (const sub of subdirs) loadCommands(path.join(dir, sub));
+
+  const folders = fs.readdirSync(dir).filter(f => fs.statSync(path.join(dir, f)).isDirectory());
+  for (const folder of folders) loadCommands(path.join(dir, folder));
 };
 
 loadCommands(path.join(__dirname, 'commands'));
 
-// Carica eventi
+// === CARICA EVENTI ===
 const eventsPath = path.join(__dirname, 'events');
 fs.readdirSync(eventsPath)
-  .filter(f => f.endsWith('.js'))
+  .filter(file => file.endsWith('.js'))
   .forEach(file => {
-    const event = require(path.join(eventsPath, file));
+    const fullPath = path.join(eventsPath, file);
+    delete require.cache[require.resolve(fullPath)];
+    const event = require(fullPath);
     if (event.once) {
       client.once(event.name, (...args) => event.execute(...args, client));
     } else {
@@ -68,94 +77,64 @@ fs.readdirSync(eventsPath)
     }
   });
 
-// MongoDB
+// === MONGODB ===
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connesso'))
   .catch(err => console.error('Errore MongoDB:', err));
 
 require('./models/GuildSettings');
 
-// Anti-crash
-process.on('unhandledRejection', err => {
-  console.error('Errore non gestito:', err);
+// === ANTI-CRASH ===
+process.on('unhandledRejection', error => {
+  console.error('Unhandled promise rejection:', error);
   fs.ensureDirSync('./logs');
-  fs.appendFileSync('./logs/error.log', `${new Date()}: ${err}\n`);
+  fs.appendFileSync('./logs/error.log', `[${new Date().toISOString()}] ${error.stack || error}\n`);
 });
 
-// Backup ogni 6 ore
+// === BACKUP OGNI 6 ORE ===
 new cron.CronJob('0 */6 * * *', () => {
-  const t = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   fs.ensureDirSync('./backups');
-  fs.copySync('./warns.sqlite', `./backups/warns_${t}.sqlite`);
-  fs.copySync('./servers.json', `./backups/servers_${t}.json`);
-  console.log('Backup completato:', t);
-}).start();
-
-// ===================================
-// DASHBOARD + BOT SULLO STESSO PORT (GENIO)
-// ===================================
-let dashboardProcess = null;
-
-if (process.env.DASHBOARD_ENABLED === 'true') {
-  console.log('Avvio dashboard integrata...');
-  dashboardProcess = spawn('node', ['dashboard/server.js'], {
-    stdio: 'inherit',
-    shell: true,
-    detached: true,
-    env: { ...process.env, PORT: 8080 } // FORZA IL PORT CORRETTO
-  });
-
-  dashboardProcess.unref();
-
-  dashboardProcess.on('error', (err) => {
-    console.error('Errore dashboard:', err);
-  });
-}
-
-// === READY + URL CORRETTO PER SEMPRE ===
-client.once('ready', () => {
-  console.log(`Il mitico Bot online: ${client.user.tag}`);
-
-   global.client = client;
-
-  // URL INTELLIGENTE - FUNZIONA OVUNQUE (Fly.io, Render, Railway, Hostinger)
-  const dashboardUrl = 
-    process.env.RENDER_EXTERNAL_URL ||
-    process.env.RAILWAY_STATIC_URL ||
-    process.env.FLY_APP_URL ||
-    process.env.CF_PAGES_URL ||
-    `https://hamsterhouse.it`;
-
-  if (process.env.DASHBOARD_ENABLED === 'true') {
-    console.log(`DASHBOARD ATTIVA → ${dashboardUrl}`);
-    console.log(`Apri subito: ${dashboardUrl}`);
+  if (fs.existsSync('./warns.sqlite')) {
+    fs.copySync('./warns.sqlite', `./backups/warns_${timestamp}.sqlite`);
   }
+  if (fs.existsSync('./servers.json')) {
+    fs.copySync('./servers.json', `./backups/servers_${timestamp}.json`);
+  }
+  console.log(`Backup completato → ${timestamp}`);
+}, null, true).start();
+
+// === READY ===
+client.once('ready', () => {
+  console.log(`Bot online come ${client.user.tag}`);
+  global.client = client;
 
   // Status rotante
   if (statusConfig?.statusList?.length > 0) {
-    const statusList = statusConfig.statusList;
+    const list = statusConfig.statusList;
     const interval = statusConfig.statusInterval || 10000;
-    let index = 0;
+    let i = 0;
 
-    const updateStatus = () => {
-      const s = statusList[index];
-      const type = ActivityType[s.type] || ActivityType.Playing;
+    const rotate = () => {
+      const status = list[i];
+      const type = ActivityType[status.type] || ActivityType.Playing;
       client.user.setPresence({
-        activities: [{ name: s.text || 'Hamster House', type }],
-        status: s.presence || 'online'
+        activities: [{ name: status.text || 'Hamster House', type }],
+        status: status.presence || 'online'
       });
-      index = (index + 1) % statusList.length;
+      i = (i + 1) % list.length;
     };
 
-    updateStatus();
-    setInterval(updateStatus, interval);
-    console.log(`Status rotante: ${statusList.length} stati`);
+    rotate();
+    setInterval(rotate, interval);
+    console.log(`${list.length} status in rotazione`);
   }
 });
 
-// Gestione bottoni
-client.on('interactionCreate', async (interaction) => {
+// === GESTIONE BOTTONI (es. report) ===
+client.on('interactionCreate', async interaction => {
   if (!interaction.isButton()) return;
+
   const reportCmd = client.commands.get('report');
   if (reportCmd?.handleButton) {
     try {
@@ -166,5 +145,5 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-// Login
+// === LOGIN ===
 client.login(process.env.TOKEN);
