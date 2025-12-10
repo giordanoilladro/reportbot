@@ -32,7 +32,7 @@ try {
 }
 
 let serverConfig;
-const config1Path = '/data/config1.json';
+const config1Path = './data/config1.json';
 
 try {
   serverConfig = JSON.parse(fs.readFileSync(config1Path, 'utf8'));
