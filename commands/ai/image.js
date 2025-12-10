@@ -27,7 +27,7 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    // DEFER IMMEDIATO + FIX 2025 per il warning "ephemeral"
+    // DEFER IMMEDIATO (evita Unknown interaction)
     await interaction.deferReply();
 
     let prompt = interaction.options.getString('prompt');
@@ -40,8 +40,8 @@ module.exports = {
       const response = await axios.post(
         'https://api.replicate.com/v1/predictions',
         {
-          // SOLO model → Replicate 2025 accetta solo questo
-          model: "black-forest-labs/flux-schnell",
+          // FIX 2025: SOLO version, NIENTE model!
+          version: "black-forest-labs/flux-schnell",
           input: {
             prompt: finalPrompt,
             num_outputs: 1,
@@ -54,9 +54,9 @@ module.exports = {
           headers: {
             'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
             'Content-Type': 'application/json',
-            'Prefer': 'wait' // immagine pronta in 4-8 secondi, niente polling
+            'Prefer': 'wait' // immagine pronta in 4-8 secondi, niente polling inutile
           },
-          timeout: 30000 // 30 secondi di timeout (più che sufficiente)
+          timeout: 30000 // 30s timeout anti-crash
         }
       );
 
@@ -74,10 +74,6 @@ module.exports = {
       }
 
       // Fallback ultra-raro (solo se Replicate è lentissimo)
-      await interaction.editReply({
-        content: 'Il criceto sta scaldando i motori... un secondo!'
-      });
-
       const predictionId = data.id;
       let imageUrl = null;
 
@@ -85,7 +81,10 @@ module.exports = {
         await new Promise(r => setTimeout(r, 2500));
         const poll = await axios.get(
           `https://api.replicate.com/v1/predictions/${predictionId}`,
-          { headers: { 'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}` } }
+          { 
+            headers: { 'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}` },
+            timeout: 10000
+          }
         );
 
         if (poll.data.status === 'succeeded') {
@@ -98,7 +97,7 @@ module.exports = {
       }
 
       if (!imageUrl) {
-        return await interaction.editReply("Il criceto è scappato... riprova tra 5 secondi!");
+        return await interaction.editReply("Il criceto è scappato... riprova tra 5 secondi! 🐹");
       }
 
       const attachment = new AttachmentBuilder(imageUrl, { name: 'flux-schnell.png' });
@@ -112,15 +111,16 @@ module.exports = {
 
       const errorMsg = error.response?.data?.detail || error.message || "Errore sconosciuto";
 
-      // Risposta ephemerale SOLO in caso di errore (fix warning 2025)
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({
+      // FIX warning ephemeral: usa flags solo se necessario
+      if (interaction.deferred) {
+        await interaction.editReply({
           content: `Errore del criceto:\n\`\`\`${errorMsg}\`\`\``,
           flags: [MessageFlags.Ephemeral]
         }).catch(() => {});
       } else {
-        await interaction.editReply({
-          content: `Errore del criceto:\n\`\`\`${errorMsg}\`\`\``
+        await interaction.reply({
+          content: `Errore del criceto:\n\`\`\`${errorMsg}\`\`\``,
+          flags: [MessageFlags.Ephemeral]
         }).catch(() => {});
       }
     }
