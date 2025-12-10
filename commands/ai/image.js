@@ -1,17 +1,20 @@
 // commands/ai/imagine.js
-const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder, MessageFlags } = require('discord.js');
 const axios = require('axios');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('imagine')
-    .setDescription('Genera immagini AI con Flux (qualità folle, gratis)')
+    .setDescription('Genera immagini AI con Flux (qualità folle, gratis, illimitato)')
     .addStringOption(option =>
-      option.setName('prompt')
+      option
+        .setName('prompt')
         .setDescription('Es: un criceto mafioso con sigaro e corona d\'oro')
-        .setRequired(true))
+        .setRequired(true)
+    )
     .addStringOption(option =>
-      option.setName('stile')
+      option
+        .setName('stile')
         .setDescription('Stile opzionale')
         .setRequired(false)
         .addChoices(
@@ -20,9 +23,11 @@ module.exports = {
           { name: 'Meme / Cartoon', value: 'cartoon, meme style, exaggerated features, funny' },
           { name: 'Cyberpunk', value: 'cyberpunk, neon lights, rain, dark atmosphere' },
           { name: 'Dark Fantasy', value: 'dark fantasy, epic, dramatic lighting, highly detailed' }
-        )),
+        )
+    ),
 
   async execute(interaction) {
+    // DEFER IMMEDIATO + FIX 2025 per il warning "ephemeral"
     await interaction.deferReply();
 
     let prompt = interaction.options.getString('prompt');
@@ -32,35 +37,35 @@ module.exports = {
     const finalPrompt = `${prompt}, masterpiece, best quality, highly detailed, sharp focus, cinematic lighting`;
 
     try {
-      // █ LE 3 RIGHE MAGICHE (sostituisci solo da qui...)
       const response = await axios.post(
         'https://api.replicate.com/v1/predictions',
         {
-          model: "black-forest-labs/flux-schnell",           // ← 1ª riga (illimitato)
+          // SOLO model → Replicate 2025 accetta solo questo
+          model: "black-forest-labs/flux-schnell",
           input: {
             prompt: finalPrompt,
             num_outputs: 1,
             aspect_ratio: "1:1",
             output_format: "png",
-            num_inference_steps: 4                         // ← 2ª riga (4 step = velocissimo)
+            num_inference_steps: 4
           }
         },
         {
           headers: {
             'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
             'Content-Type': 'application/json',
-            'Prefer': 'wait'                                 // ← 3ª riga (risposta immediata!)
-          }
+            'Prefer': 'wait' // immagine pronta in 4-8 secondi, niente polling
+          },
+          timeout: 30000 // 30 secondi di timeout (più che sufficiente)
         }
       );
-      // ...a qui █
 
-      const prediction = response.data;
+      const data = response.data;
 
-      // Con 'Prefer: wait' + Schnell hai quasi sempre l'immagine subito
-      if (prediction.status === "succeeded" && prediction.output?.[0]) {
-        const imageUrl = prediction.output[0];
-        const attachment = new AttachmentBuilder(imageUrl, { name: 'criceto-schnell.png' });
+      // Con 'Prefer: wait' + flux-schnell l'immagine è quasi sempre pronta subito
+      if (data.status === "succeeded" && data.output?.[0]) {
+        const imageUrl = data.output[0];
+        const attachment = new AttachmentBuilder(imageUrl, { name: 'flux-schnell.png' });
 
         return await interaction.editReply({
           content: `**Prompt:** ${prompt}`,
@@ -68,25 +73,35 @@ module.exports = {
         });
       }
 
-      // Fallback (raro con Schnell + wait)
-      const predictionId = prediction.id;
+      // Fallback ultra-raro (solo se Replicate è lentissimo)
+      await interaction.editReply({
+        content: 'Il criceto sta scaldando i motori... un secondo!'
+      });
+
+      const predictionId = data.id;
       let imageUrl = null;
-      for (let i = 0; i < 15; i++) {
-        await new Promise(r => setTimeout(r, 2000));
+
+      for (let i = 0; i < 12; i++) {
+        await new Promise(r => setTimeout(r, 2500));
         const poll = await axios.get(
           `https://api.replicate.com/v1/predictions/${predictionId}`,
           { headers: { 'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}` } }
         );
+
         if (poll.data.status === 'succeeded') {
           imageUrl = poll.data.output[0];
           break;
         }
-        if (poll.data.status === 'failed') throw new Error('Fallito');
+        if (poll.data.status === 'failed') {
+          throw new Error(poll.data.error || 'Generazione fallita');
+        }
       }
 
-      if (!imageUrl) return await interaction.editReply("Il criceto sta correndo a 300 km/h… riprova!");
+      if (!imageUrl) {
+        return await interaction.editReply("Il criceto è scappato... riprova tra 5 secondi!");
+      }
 
-      const attachment = new AttachmentBuilder(imageUrl, { name: 'criceto-schnell.png' });
+      const attachment = new AttachmentBuilder(imageUrl, { name: 'flux-schnell.png' });
       await interaction.editReply({
         content: `**Prompt:** ${prompt}`,
         files: [attachment]
@@ -94,7 +109,20 @@ module.exports = {
 
     } catch (error) {
       console.error("Errore Flux:", error.response?.data || error.message);
-      await interaction.editReply("Il criceto ha mangiato il cavo Ethernet. Riprova tra 5 secondi ⚡");
+
+      const errorMsg = error.response?.data?.detail || error.message || "Errore sconosciuto";
+
+      // Risposta ephemerale SOLO in caso di errore (fix warning 2025)
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: `Errore del criceto:\n\`\`\`${errorMsg}\`\`\``,
+          flags: [MessageFlags.Ephemeral]
+        }).catch(() => {});
+      } else {
+        await interaction.editReply({
+          content: `Errore del criceto:\n\`\`\`${errorMsg}\`\`\``
+        }).catch(() => {});
+      }
     }
   },
 };
