@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const fs = require('fs');
 
-const CONFIG_FILE = '/data/config.json';
+const CONFIG_FILE = './data/config.json';
 
 module.exports = {
   data: new SlashCommandBuilder()

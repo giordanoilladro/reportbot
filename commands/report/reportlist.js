@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Usa /data/ per persistenza su Fly.io
-const reportsPath = '/data/reports.json';
+const reportsPath = './data/reports.json';
 
 module.exports = {
   data: new SlashCommandBuilder()
