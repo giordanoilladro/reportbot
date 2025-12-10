@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const CONFIG_PATH = '/data/config1.json';
+const CONFIG_PATH = './data/config1.json';
 let cache = null;
 
 function load() {
