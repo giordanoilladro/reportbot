@@ -3,6 +3,15 @@ const Guild = require('../models/Guild');
 const bestemmie = require('../bestemmie.json');
 const spamCooldown = new Map();
 
+
+const BLACKLISTED_SERVER_IDS = [
+  1442088423392411750,   // ←←← METTI QUI GLI ID NUMERICI DEI SERVER DA BLOCCARE
+  1412084246398632008,
+  982559675331530802,
+  1402995215870201886, 
+  
+  // aggiungi quanti ne vuoi, separati da virgola
+];
 // ──────────────────────────────
 // ROAST ANTI-INSULTO – SEMPRE CATTIVO + 75+ RISPOSTE + ANTI-RIPETIZIONE
 // ──────────────────────────────
@@ -11,6 +20,8 @@ const insulti = [
   "scemo", "ritardato", "merda", "fottiti", "fuck you", "muori", "brutto", "handicappato",
   "down", "autistico", "frocio", "puttana", "troia", "leccami", "cazzo", "coglion", "scemo"
 ];
+
+
 
 const risposteCattive = [
   "Parli tu che passi la giornata a insultare un bot invece di studiare",
@@ -100,6 +111,26 @@ module.exports = {
   name: 'messageCreate',
   async execute(message) {
     if (message.author.bot || !message.guild) return;
+
+    if (BLACKLISTED_SERVER_IDS.length > 0) {
+  const inviteCodes = message.content.matchAll(/(?:discord(?:app)?\.(?:gg|com\/invite)\/)(\w+)/gi);
+
+  for (const match of inviteCodes) {
+    const code = match[1];
+
+    try {
+      const invite = await message.client.fetchInvite(code).catch(() => null);
+      if (invite?.guild && BLACKLISTED_SERVER_IDS.some(id => id === BigInt(invite.guild.id))) {
+        await message.delete().catch(() => {});
+        await message.channel.send({
+          content: `${message.author} Invito a server bannato → messaggio rimosso.`,
+          allowedMentions: { repliedUser: false }
+        }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)).catch(() => {});
+        return; // stoppa tutto
+      }
+    } catch {} // invito scaduto o invalido → ignora
+  }
+}
 
     const guildData = await Guild.findOne({ guildId: message.guild.id }) ||
                      new Guild({ guildId: message.guild.id });
