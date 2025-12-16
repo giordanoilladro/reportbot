@@ -1,22 +1,45 @@
 // commands/ai/ask.js
 const { SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandType } = require('discord.js');
 const { Groq } = require('groq-sdk');
+const User = require('../../models/User'); // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+const personalities = require('../../utils/personalities'); // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
 
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
-  // FIXATO: era scritto GROk_API_KEY (manca la Q!)
+  apiKey: process.env.GROQ_API_KEY
 });
 
-// Funzione condivisa per generare la risposta tossica (usata sia dallo slash che dal context menu)
-async function generaRispostaTossica(domanda, interaction) {
-  await interaction.deferReply(); // defer sempre, anche se già fatto fuori
+// System prompt di fallback (se qualcosa va storto)
+const defaultPrompt = personalities.tossico;
+
+// Funzione condivisa per generare la risposta in base alla modalità dell'utente
+async function generaRisposta(domanda, interaction) {
+  await interaction.deferReply();
+
+  const userId = interaction.user.id;
+
+  // Recupera la modalità personale dell'utente
+  let userMode = 'tossico'; // default
+  try {
+    const userDoc = await User.findOne({ userId });
+    if (userDoc && userDoc.personalityMode) {
+      userMode = userDoc.personalityMode;
+    }
+  } catch (err) {
+    console.error("Errore nel recupero modalità utente:", err);
+    // continua con default, non blocca il comando
+  }
+
+  const systemPrompt = personalities[userMode] || defaultPrompt;
+
+  // Opzionale: per la modalità "serio" riduciamo la creatività
+  const temperature = userMode === 'serio' ? 0.6 : 0.9;
 
   try {
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: "Sei Hamster Bot, un criceto italiano tossico, arrogante, sarcastico e senza filtri. Rispondi SEMPRE in italiano, usa meme, emoji, insulti leggeri e arroganza. Non sei mai gentile. Usa un tono da boss mafioso dei vicoli."
+          content: systemPrompt
         },
         {
           role: "user",
@@ -24,7 +47,7 @@ async function generaRispostaTossica(domanda, interaction) {
         }
       ],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.9,
+      temperature,
       max_tokens: 1024,
     });
 
@@ -54,6 +77,8 @@ async function generaRispostaTossica(domanda, interaction) {
     }
   } catch (error) {
     console.error("Errore Groq nel comando ask:", error.message || error);
+
+    // Messaggi di errore adattati alla modalità (ma per semplicità usiamo quelli tossici di default)
     const erroriTossici = [
       "Il mio cervello da criceto ha preso fuoco, riprova fra 5 secondi",
       "Groq mi ha bloccato... sono troppo mafioso anche per loro",
@@ -73,10 +98,9 @@ async function generaRispostaTossica(domanda, interaction) {
 }
 
 module.exports = {
-  // Slash command /ask (come prima)
   data: new SlashCommandBuilder()
     .setName('ask')
-    .setDescription('Parla con Hamster Bot IA (tossico, sarcastico e italiano)')
+    .setDescription('Parla con Hamster Bot IA (modalità personale: usa /hamstermode per cambiarla)')
     .addStringOption(option =>
       option
         .setName('domanda')
@@ -84,32 +108,28 @@ module.exports = {
         .setRequired(true)
     ),
 
-  // Context Menu Command (nuovo!)
   contextMenu: new ContextMenuCommandBuilder()
     .setName('Chiedi a Hamster Bot')
     .setType(ApplicationCommandType.Message),
 
   async execute(interaction) {
-    // Caso 1: è lo slash command /ask
     if (interaction.isChatInputCommand()) {
       const domanda = interaction.options.getString('domanda');
-      await generaRispostaTossica(domanda, interaction);
+      await generaRisposta(domanda, interaction);
     }
-    // Caso 2: è il context menu "Chiedi a Hamster Bot"
     else if (interaction.isMessageContextMenuCommand()) {
       const messaggio = interaction.targetMessage;
 
       let domanda = messaggio.content.trim();
 
-      // Se il messaggio è vuoto (es. solo embed, immagine o giveaway), usa un testo di fallback
       if (!domanda) {
         domanda = "[Questo messaggio non ha testo, probabilmente è un embed, un giveaway o un'immagine... descrivimelo tu, mortale]";
       }
 
-      // Aggiungi un po' di contesto tossico
-      domanda = `Analizza e rispondi in modo tossico a questo messaggio di ${messaggio.author.username}: "${domanda}"`;
+      // Contesto adattato alla modalità (ma lasciamo generico, il system prompt farà il resto)
+      domanda = `Analizza e rispondi a questo messaggio di ${messaggio.author.username}: "${domanda}"`;
 
-      await generaRispostaTossica(domanda, interaction);
+      await generaRisposta(domanda, interaction);
     }
   },
 };
