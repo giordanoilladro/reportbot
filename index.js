@@ -83,6 +83,7 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error('Errore MongoDB:', err));
 
 require('./models/GuildSettings');
+require('./models/User');
 
 // === ANTI-CRASH ===
 process.on('unhandledRejection', error => {
