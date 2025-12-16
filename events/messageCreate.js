@@ -3,15 +3,13 @@ const Guild = require('../models/Guild');
 const bestemmie = require('../bestemmie.json');
 const spamCooldown = new Map();
 
-
 const BLACKLISTED_SERVER_IDS = [
-  1442088423392411750,   // ←←← METTI QUI GLI ID NUMERICI DEI SERVER DA BLOCCARE
+  1442088423392411750,
   1412084246398632008,
   982559675331530802,
-  1402995215870201886, 
-  
-  // aggiungi quanti ne vuoi, separati da virgola
+  1402995215870201886,
 ];
+
 // ──────────────────────────────
 // ROAST ANTI-INSULTO – SEMPRE CATTIVO + 75+ RISPOSTE + ANTI-RIPETIZIONE
 // ──────────────────────────────
@@ -20,8 +18,6 @@ const insulti = [
   "scemo", "ritardato", "merda", "fottiti", "fuck you", "muori", "brutto", "handicappato",
   "down", "autistico", "frocio", "puttana", "troia", "leccami", "cazzo", "coglion", "scemo"
 ];
-
-
 
 const risposteCattive = [
   "Parli tu che passi la giornata a insultare un bot invece di studiare",
@@ -113,24 +109,24 @@ module.exports = {
     if (message.author.bot || !message.guild) return;
 
     if (BLACKLISTED_SERVER_IDS.length > 0) {
-  const inviteCodes = message.content.matchAll(/(?:discord(?:app)?\.(?:gg|com\/invite)\/)(\w+)/gi);
+      const inviteCodes = message.content.matchAll(/(?:discord(?:app)?\.(?:gg|com\/invite)\/)(\w+)/gi);
 
-  for (const match of inviteCodes) {
-    const code = match[1];
+      for (const match of inviteCodes) {
+        const code = match[1];
 
-    try {
-      const invite = await message.client.fetchInvite(code).catch(() => null);
-      if (invite?.guild && BLACKLISTED_SERVER_IDS.some(id => id === BigInt(invite.guild.id))) {
-        await message.delete().catch(() => {});
-        await message.channel.send({
-          content: `${message.author} Invito a server bannato → messaggio rimosso.`,
-          allowedMentions: { repliedUser: false }
-        }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)).catch(() => {});
-        return; // stoppa tutto
+        try {
+          const invite = await message.client.fetchInvite(code).catch(() => null);
+          if (invite?.guild && BLACKLISTED_SERVER_IDS.some(id => id === BigInt(invite.guild.id))) {
+            await message.delete().catch(() => {});
+            await message.channel.send({
+              content: `${message.author} Invito a server bannato → messaggio rimosso.`,
+              allowedMentions: { repliedUser: false }
+            }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)).catch(() => {});
+            return;
+          }
+        } catch {} // invito scaduto o invalido → ignora
       }
-    } catch {} // invito scaduto o invalido → ignora
-  }
-}
+    }
 
     const guildData = await Guild.findOne({ guildId: message.guild.id }) ||
                      new Guild({ guildId: message.guild.id });
@@ -247,12 +243,33 @@ module.exports = {
       }
     }
 
-    // 5. AI CHAT con Groq – FIXATO AL 100% (dicembre 2025)
+    // 5. AI CHAT con Groq – ORA USA LA MODALITÀ PERSONALE DELL'UTENTE (come /ask)
     if (!message.author.bot && (message.channel.type === 'DM' || message.mentions.has(message.client.user))) {
       if (message.content.startsWith('/') || message.content.startsWith('!')) return;
 
       try {
         await message.channel.sendTyping();
+
+        // Import dinamici per evitare circular dependency
+        const User = require('../models/User');
+        const personalities = require('../utils/personalities');
+
+        // Recupera la modalità personale dell'utente
+        let userMode = 'tossico';
+        try {
+          const userDoc = await User.findOne({ userId: message.author.id });
+          if (userDoc?.personalityMode) {
+            userMode = userDoc.personalityMode;
+          }
+        } catch (err) {
+          console.error('Errore recupero modalità utente in messageCreate:', err);
+          // Continua con default tossico
+        }
+
+        const systemPrompt = personalities[userMode] || personalities.tossico;
+
+        // Temperature più bassa per modalità seria
+        const temperature = userMode === 'serio' ? 0.6 : 0.9;
 
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
@@ -262,24 +279,17 @@ module.exports = {
           },
           body: JSON.stringify({
             messages: [
-              {
-                role: "system",
-                content: "Sei Hamster Bot, un criceto digitale italiano tossico, sarcastico, cattivo e senza filtri. Rispondi sempre in italiano, con meme, insulti leggeri e arroganza. Usa emoji. Non sei mai gentile."
-              },
-              {
-                role: "user",
-                content: message.content
-              }
+              { role: "system", content: systemPrompt },
+              { role: "user", content: message.content }
             ],
-            model: "llama-3.3-70b-versatile",  // MODELLO AGGIORNATO e SUPPORTATO (dicembre 2025)
-            temperature: 0.9,
+            model: "llama-3.3-70b-versatile",
+            temperature: temperature,
             max_tokens: 1024
           })
         });
 
         const data = await response.json();
 
-        // Controlli di sicurezza (evita il TypeError)
         if (!response.ok) {
           throw new Error(`Groq API Error ${response.status}: ${data.error?.message || JSON.stringify(data)}`);
         }
@@ -289,7 +299,7 @@ module.exports = {
 
         let aiReply = data.choices[0].message.content.trim();
 
-        // Risposte lunghe → le spezzo
+        // Spezza risposte lunghe
         if (aiReply.length > 2000) {
           const parts = aiReply.match(/.{1,1990}/g) || [];
           for (const part of parts) {
@@ -307,7 +317,7 @@ module.exports = {
         }
 
       } catch (err) {
-        console.error("Errore Groq:", err.message || err);
+        console.error("Errore Groq in messageCreate:", err.message || err);
 
         const fallback = [
           "Il mio cervello da criceto sta laggando, riprova fra 5 secondi 💀",
