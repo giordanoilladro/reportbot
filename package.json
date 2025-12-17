@@ -25,6 +25,7 @@
     "mongodb": "^6.21.0",
     "mongoose": "^8.19.3",
     "node-fetch": "^2.7.0",
+    "quick.db": "^9.1.7",
     "sqlite3": "^5.1.7"
   }
 }
