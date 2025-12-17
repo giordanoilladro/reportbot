@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 
-const VIP_ROLE_ID = '123456789012345678';
+const VIP_ROLE_ID = '141389400131200631';
 
 module.exports = {
     data: new SlashCommandBuilder()
