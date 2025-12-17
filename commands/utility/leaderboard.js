@@ -42,8 +42,8 @@ module.exports = {
     // Top 10 monete
     const allUsers = await db.all();
     const coinEntries = allUsers
-      .filter(entry => entry.ID.startsWith('coins_') && interaction.guild.members.cache.has(entry.ID.split('_')[1]))
-      .map(entry => ({ id: entry.ID.split('_')[1], coins: entry.value }))
+      .filter(entry => entry.id.startsWith('coins_') && interaction.guild.members.cache.has(entry.id.split('_')[1]))
+      .map(entry => ({ id: entry.id.split('_')[1], coins: entry.value }))
       .sort((a, b) => b.coins - a.coins)
       .slice(0, 10);
 
