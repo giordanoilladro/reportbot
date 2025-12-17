@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
-const QuickDB = require('quick.db');
-const db = new QuickDB();
+const { QuickDB } = require("quick.db");
+const db = new QuickDB(); // Funziona così
 const VIP_ROLE_ID = '1413894001312006316'; // Sostituisci con il tuo
 
 module.exports = {

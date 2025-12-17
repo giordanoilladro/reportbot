@@ -1,7 +1,7 @@
 // commands/utility/leaderboard.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const QuickDB = require('quick.db');
-const db = new QuickDB();
+const { QuickDB } = require("quick.db");
+const db = new QuickDB(); // Funziona così
 const Guild = require('../../models/Guild');
 
 module.exports = {
