@@ -1,3 +1,4 @@
+// commands/fun/coinflip.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { QuickDB } = require("quick.db");
 const db = new QuickDB();
@@ -5,78 +6,111 @@ const db = new QuickDB();
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('coinflip')
-        .setDescription('Lancia una moneta e scommetti coins! 🪙')
+        .setDescription('Scommetti coins contro un altro utente! 🪙')
         .addIntegerOption(option =>
             option
-                .setName('scommessa')
-                .setDescription('Quanti coins vuoi scommettere? (opzionale, min 10)')
+                .setName('money')
+                .setDescription('Quanti coins vuoi scommettere? (min 10)')
                 .setMinValue(10)
-                .setRequired(false)
+                .setRequired(true)
+        )
+        .addUserOption(option =>
+            option
+                .setName('utente')
+                .setDescription('L\'utente contro cui scommettere')
+                .setRequired(true)
         ),
 
     async execute(interaction) {
-        const bet = interaction.options.getInteger('scommessa') || 0;
-        const userId = interaction.user.id;
-        const guildId = interaction.guild.id;
-        const coinsKey = `coins_${guildId}_${userId}`;
+        const bet = interaction.options.getInteger('money');
+        const opponent = interaction.options.getUser('utente');
 
-        let currentCoins = await db.get(coinsKey) || 0;
-
-        // GIF nuove e funzionanti
-        const flippingGif = 'https://media.giphy.com/media/f4OfUKE2eVpoFi6dxI/giphy.gif'; // Moneta che gira in aria (realistica)
-        const headsGif = 'https://media.giphy.com/media/3o6fIVWkDCb89PauSQ/giphy.gif'; // Atterra su Heads/Tails con reveal (buona per heads)
-        const tailsGif = 'https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif'; // Flipping classico da Tenor (funziona bene per tails o generico)
-
-        if (bet > 0) {
-            if (currentCoins < bet) {
-                return interaction.reply({ content: `❌ Non hai abbastanza coins! Ne hai solo **${currentCoins}** 🪙`, ephemeral: true });
-            }
+        if (opponent.id === interaction.user.id) {
+            return interaction.reply({ content: '❌ Non puoi scommettere contro te stesso!', ephemeral: true });
         }
+
+        if (opponent.bot) {
+            return interaction.reply({ content: '❌ Non puoi scommettere contro un bot!', ephemeral: true });
+        }
+
+        const userId = interaction.user.id;
+        const opponentId = opponent.id;
+        const guildId = interaction.guild.id;
+
+        const userCoinsKey = `coins_${guildId}_${userId}`;
+        const opponentCoinsKey = `coins_${guildId}_${opponentId}`;
+
+        let userCoins = await db.get(userCoinsKey) || 0;
+        let opponentCoins = await db.get(opponentCoinsKey) || 0;
+
+        // Controllo saldo per entrambi
+        if (userCoins < bet) {
+            return interaction.reply({ content: `❌ Non hai abbastanza coins! Hai solo **${userCoins}** monete 🪙`, ephemeral: true });
+        }
+        if (opponentCoins < bet) {
+            return interaction.reply({ content: `❌ ${opponent.username} non ha abbastanza coins! Ha solo **${opponentCoins}** monete 🪙`, ephemeral: true });
+        }
+
+        // GIF funzionanti
+        const flippingGif = 'https://media.giphy.com/media/l2JehQ2VbanWOFqI8/giphy.gif';
+        const headsGif = 'https://media.giphy.com/media/xT9IgzoKeLoR2mD86k/giphy.gif'; // Testa (executor vince)
+        const tailsGif = 'https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif'; // Croce (opponent vince)
 
         const flippingEmbed = new EmbedBuilder()
             .setColor(0xFFD700)
             .setTitle('🪙 Lancio la moneta...')
-            .setDescription(bet > 0 ? `*Scommessa: ${bet} coins!*\nGira, gira... il destino decide! 🍃` : '*Gira, gira, gira...* 🍃')
+            .setDescription(`**Scommessa:** ${bet} coins\n**Giocatori:** ${interaction.user.username} vs ${opponent.username}\nGira, gira... 🍃`)
             .setImage(flippingGif)
-            .setFooter({ text: `Richiesto da ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+            .setFooter({ text: `Partita tra ${interaction.user.username} e ${opponent.username}` })
             .setTimestamp();
 
         await interaction.reply({ embeds: [flippingEmbed] });
 
-        const delay = Math.floor(Math.random() * 2000) + 2000;
-        await new Promise(resolve => setTimeout(resolve, delay));
+        // Suspense
+        await new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * 2000) + 2000));
 
-        const isHeads = Math.random() < 0.5;
-        const risultatoTesto = isHeads ? '**TESTA!** 🪙' : '**CROCE!** 🪙';
-        const risultatoGif = isHeads ? headsGif : tailsGif;
+        const isHeads = Math.random() < 0.5; // 50% chance: heads = executor vince
 
-        let descrizione = `**Risultato:** ${risultatoTesto}\n\n`;
-        let colore = 0x7289DA;
+        let resultEmbed;
+        if (isHeads) {
+            // Executor vince: prende il doppio (+bet netto)
+            userCoins += bet;
+            opponentCoins -= bet;
 
-        if (bet > 0) {
-            if (isHeads) {
-                const vincita = bet * 2;
-                currentCoins += bet;
-                await db.set(coinsKey, currentCoins);
-                descrizione += `🎉 **Hai vinto!** +${bet} coins (totale ${vincita})\nOra hai **${currentCoins}** coins 🪙`;
-                colore = 0x00AE86;
-            } else {
-                currentCoins -= bet;
-                await db.set(coinsKey, currentCoins);
-                descrizione += `😢 **Hai perso!** -${bet} coins\nOra hai **${currentCoins}** coins 🪙`;
-                colore = 0xFF6B6B;
-            }
+            await db.set(userCoinsKey, userCoins);
+            await db.set(opponentCoinsKey, opponentCoins);
+
+            resultEmbed = new EmbedBuilder()
+                .setColor(0x00AE86)
+                .setTitle('🪙 TESTA! HAI VINTO! 🎉')
+                .setDescription(
+                    `**Vincitore:** ${interaction.user.username} (+${bet} coins, totale ${userCoins})\n` +
+                    `**Sconfitto:** ${opponent.username} (-${bet} coins, totale ${opponentCoins})\n` +
+                    `Guadagno netto: il doppio della scommessa!`
+                )
+                .setImage(headsGif)
+                .setTimestamp();
         } else {
-            descrizione += isHeads ? 'La fortuna ti sorride! 😄' : 'Ritenta, sarà più fortunato! 🍀';
+            // Opponent vince: executor perde
+            userCoins -= bet;
+            opponentCoins += bet;
+
+            await db.set(userCoinsKey, userCoins);
+            await db.set(opponentCoinsKey, opponentCoins);
+
+            resultEmbed = new EmbedBuilder()
+                .setColor(0xFF6B6B)
+                .setTitle('🪙 CROCE... HAI PERSO 😢')
+                .setDescription(
+                    `**Vincitore:** ${opponent.username} (+${bet} coins, totale ${opponentCoins})\n` +
+                    `**Sconfitto:** ${interaction.user.username} (-${bet} coins, totale ${userCoins})\n` +
+                    `Hai perso solo la scommessa.`
+                )
+                .setImage(tailsGif)
+                .setTimestamp();
         }
 
-        const resultEmbed = new EmbedBuilder()
-            .setColor(colore)
-            .setTitle('🪙 La moneta è atterrata!')
-            .setDescription(descrizione)
-            .setImage(risultatoGif)
-            .setFooter({ text: `Lanciato da ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
-            .setTimestamp();
+        resultEmbed.setFooter({ text: `Partita tra ${interaction.user.username} e ${opponent.username}` });
 
         await interaction.editReply({ embeds: [resultEmbed] });
     }
