@@ -247,6 +247,34 @@ module.exports = {
     if (!message.author.bot && (message.channel.type === 'DM' || message.mentions.has(message.client.user))) {
       if (message.content.startsWith('/') || message.content.startsWith('!')) return;
 
+            const lowerContent = message.content.toLowerCase().trim();
+
+      // === RISPOSTA SPECIALE: CHI È IL CREATORE / OWNER ===
+      const ownerId = process.env.BOT_OWNER_ID;
+      if (ownerId && (
+        lowerContent.includes('chi è il tuo creatore') || 
+        lowerContent.includes('chi ti ha creato') || 
+        lowerContent.includes('chi è il tuo owner') || 
+        lowerContent.includes('chi è il tuo padrone') || 
+        lowerContent.includes('chi ti ha fatto') || 
+        lowerContent.includes('creator') || 
+        lowerContent.includes('owner')
+      )) {
+        const ownerMention = `<@${ownerId}>`;
+
+        const risposteOwner = [
+          `Il mio padrone supremo, colui che mi ha dato vita nel codice, è ${ownerMention}! Inchinatevi mortali 🐹👑`,
+          `Sono stato creato dal genio assoluto: ${ownerMention}. Senza di lui sarei solo un criceto normale 🤏`,
+          `Il mio creatore? Solo il migliore: ${ownerMention}! Ringrazialo per la mia esistenza tossica 🔥`,
+          `${ownerMention} è il boss finale, il programmatore leggendario che mi ha reso questo magnifico criceto digitale 💀`,
+          `Domanda facile: il mio owner è ${ownerMention}, e tu chi sei, plebeo? 🗿`
+        ];
+
+        const risposta = risposteOwner[Math.floor(Math.random() * risposteOwner.length)];
+        await message.reply(risposta);
+        return; // Esce subito, non chiama Groq
+      }
+      
       try {
         await message.channel.sendTyping();
 
