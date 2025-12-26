@@ -8,7 +8,7 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
 });
 
-const TOKEN = process.env.DISCORD_TOKEN;
+const TOKEN = process.env.TOKEN;
 const EVOLINK_API_KEY = process.env.EVOLINK_API_KEY;
 
 if (!TOKEN || !EVOLINK_API_KEY) {
