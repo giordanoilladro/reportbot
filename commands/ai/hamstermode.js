@@ -7,7 +7,8 @@ const MODES = {
   scherzoso: '😂 Scherzoso (divertente, giocoso, amichevole)',
   serio: '📘 Serio (preciso, fattuale, senza scherzi o invenzioni)',
   arrabbiato: '🤬 Arrabbiato (urla, insulti pesanti, sempre incazzato)',
-  dissing: '🔥 Dissing (roast epici, barre da rap, umiliazioni totali)'
+  dissing: '🔥 Dissing (roast epici, barre da rap, umiliazioni totali)',
+  carino: '🥰 Carino (dolce, gentile, affettuoso e premuroso)'
 };
 
 module.exports = {
@@ -28,7 +29,8 @@ module.exports = {
               { name: '😂 Scherzoso', value: 'scherzoso' },
               { name: '📘 Serio', value: 'serio' },
               { name: '🤬 Arrabbiato', value: 'arrabbiato' },
-              { name: '🔥 Dissing pesante', value: 'dissing' }
+              { name: '🔥 Dissing pesante', value: 'dissing' },
+              { name: '🥰 Carino', value: 'carino' }
             )
         )
     )
