@@ -108,6 +108,12 @@ module.exports = {
   async execute(message) {
     if (message.author.bot || !message.guild) return;
 
+// CANALE PERMESSO – ignora silenziosamente se non è il canale giusto
+const ALLOWED_CHANNEL_ID = '1467295430374326282';
+const isMentioned = message.mentions.has(message.client.user);
+const isDM = message.channel.type === 'DM';
+if (isMentioned && !isDM && message.channel.id !== ALLOWED_CHANNEL_ID) return;
+
     // BLOCCO @everyone e @here
     if (message.mentions.everyone) {
       await message.delete().catch(() => {});
