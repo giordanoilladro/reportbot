@@ -295,7 +295,7 @@ module.exports = {
     if (message.mentions.everyone) {
       await message.delete().catch(() => {});
       await message.channel.send({
-        content: `${message.author} Non puoi usare @everyone o @here qui!`,
+        content: `${message.author} Non puoi usare everyone o here qui!`,
         allowedMentions: { parse: [], repliedUser: false }
       }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)).catch(() => {});
       sessionStats.messaggiCancellati++;
