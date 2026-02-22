@@ -108,6 +108,16 @@ module.exports = {
   async execute(message) {
     if (message.author.bot || !message.guild) return;
 
+    // BLOCCO @everyone e @here
+    if (message.mentions.everyone) {
+      await message.delete().catch(() => {});
+      await message.channel.send({
+        content: `${message.author} Non puoi usare @everyone o @here qui!`,
+        allowedMentions: { parse: [], repliedUser: false }
+      }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)).catch(() => {});
+      return;
+    }
+
     if (BLACKLISTED_SERVER_IDS.length > 0) {
       const inviteCodes = message.content.matchAll(/(?:discord(?:app)?\.(?:gg|com\/invite)\/)(\w+)/gi);
 
@@ -227,8 +237,10 @@ module.exports = {
         ultimaRisposta.set(key, risposta);
 
         risposta = risposta.replace(/{author}/g, message.author.toString());
+        // Sanitizza eventuali mention nel testo
+        risposta = risposta.replace(/@everyone/gi, '@\u200beveryone').replace(/@here/gi, '@\u200bhere');
         await new Promise(r => setTimeout(r, 900 + Math.random() * 1800));
-        await message.reply(risposta);
+        await message.reply({ content: risposta, allowedMentions: { parse: [], repliedUser: false } });
 
         if (Math.random() < 0.85) {
           const emoji = emojiRoast[Math.floor(Math.random() * emojiRoast.length)];
@@ -237,7 +249,7 @@ module.exports = {
 
         if (data.berserkUntil > now && Math.random() < 0.4) {
           await new Promise(r => setTimeout(r, 2800));
-          await message.reply("E comunque continui a perdere ossigeno prezioso 💀");
+          await message.reply({ content: "E comunque continui a perdere ossigeno prezioso 💀", allowedMentions: { parse: [], repliedUser: false } });
         }
         return; // evita che parta anche la chat AI per lo stesso messaggio
       }
@@ -271,7 +283,7 @@ module.exports = {
         ];
 
         const risposta = risposteOwner[Math.floor(Math.random() * risposteOwner.length)];
-        await message.reply(risposta);
+        await message.reply({ content: risposta, allowedMentions: { users: [ownerId], repliedUser: false } });
         return; // Esce subito, non chiama Groq
       }
       
@@ -327,15 +339,18 @@ module.exports = {
 
         let aiReply = data.choices[0].message.content.trim();
 
+        // Sanitizza mention pericolosi dalla risposta AI
+        aiReply = aiReply.replace(/@everyone/gi, '@\u200beveryone').replace(/@here/gi, '@\u200bhere');
+
         // Spezza risposte lunghe
         if (aiReply.length > 2000) {
           const parts = aiReply.match(/.{1,1990}/g) || [];
           for (const part of parts) {
-            await message.reply(part);
+            await message.reply({ content: part, allowedMentions: { parse: [], repliedUser: false } });
             await new Promise(r => setTimeout(r, 1000));
           }
         } else {
-          await message.reply(aiReply);
+          await message.reply({ content: aiReply, allowedMentions: { parse: [], repliedUser: false } });
         }
 
         // Reazione casuale
@@ -355,7 +370,7 @@ module.exports = {
           "Rate limitato pure io, che umiliazione 🪦"
         ][Math.floor(Math.random() * 5)];
 
-        await message.reply(fallback).catch(() => {});
+        await message.reply({ content: fallback, allowedMentions: { parse: [], repliedUser: false } }).catch(() => {});
       }
       return;
     }
