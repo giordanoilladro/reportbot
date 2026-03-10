@@ -17,12 +17,6 @@ module.exports = {
                     { name: 'Piacenza Roleplay', value: 'Piacenza Roleplay' }
                 )
         )
-        .addStringOption(option =>
-            option
-                .setName('staff')
-                .setDescription('Nome dello staff che invia il resoconto')
-                .setRequired(true)
-        )
         .addIntegerOption(option =>
             option
                 .setName('partners')
@@ -47,8 +41,10 @@ module.exports = {
         }
 
         const server   = interaction.options.getString('server');
-        const staff    = interaction.options.getString('staff');
         const partners = interaction.options.getInteger('partners');
+
+        // Staff = chi esegue il comando (nickname nel server, altrimenti username)
+        const staff = interaction.member.displayName ?? interaction.user.username;
 
         // Data di default = oggi
         const dataInput = interaction.options.getString('data');
@@ -63,7 +59,6 @@ module.exports = {
 
         // Recupero del canale target
         const canale = await interaction.client.channels.fetch(CANALE_ID);
-
         if (!canale) {
             return await interaction.reply({
                 content: '❌ Canale non trovato.',
