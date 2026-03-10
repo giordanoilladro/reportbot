@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 
 const RUOLO_AUTORIZZATO = '1475259182235127909';
 const CANALE_ID = '1475259760193572904';
@@ -43,8 +43,8 @@ module.exports = {
         const server   = interaction.options.getString('server');
         const partners = interaction.options.getInteger('partners');
 
-        // Staff = chi esegue il comando (nickname nel server, altrimenti username)
-        const staff = interaction.member.displayName ?? interaction.user.username;
+        // Tag diretto dell'utente che esegue il comando
+        const staff = `<@${interaction.user.id}>`;
 
         // Data di default = oggi
         const dataInput = interaction.options.getString('data');
