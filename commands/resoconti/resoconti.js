@@ -1,5 +1,4 @@
 const { SlashCommandBuilder } = require('discord.js');
-
 const RUOLO_AUTORIZZATO = '1475259182235127909';
 const CANALE_ID = '1475259760193572904';
 
@@ -29,7 +28,6 @@ module.exports = {
                 .setDescription('Data del resoconto (default: oggi, formato YYYY-MM-DD)')
                 .setRequired(false)
         ),
-
     async execute(interaction) {
         // Controllo ruolo autorizzato
         const hasRole = interaction.member.roles.cache.has(RUOLO_AUTORIZZATO);
@@ -43,8 +41,16 @@ module.exports = {
         const server   = interaction.options.getString('server');
         const partners = interaction.options.getInteger('partners');
 
-        // Tag diretto dell'utente che esegue il comando
-        const staff = `<@${interaction.user.id}>`;
+        // FIX: usa interaction.member.user come fallback
+        const user = interaction.user ?? interaction.member?.user;
+        if (!user) {
+            return await interaction.reply({
+                content: '❌ Impossibile recuperare le informazioni utente.',
+                ephemeral: true
+            });
+        }
+
+        const staff = `<@${user.id}>`;
 
         // Data di default = oggi
         const dataInput = interaction.options.getString('data');
